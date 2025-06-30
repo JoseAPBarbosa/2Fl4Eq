@@ -1,0 +1,20 @@
+{
+  "Comprimento [m]": 12.0,
+  "Diâmetro [m]": 1.0,
+  "Inclinação [rad]": 1.5707,
+  "Tempo de simulação [s]": 0.7,
+  "Fração de gás na entrada": 0.2,
+  "Fração de gás inicial no duto": 0.2,
+  "Densidade do gás [kg/m3]": 1.16,
+  "Densidade do líquido [kg/m3]": 1000.0,
+  "Velocidade de entrada de gás [m/s]": 0.00,
+  "Velocidade de entrada de líquido [m/s]": 10.0,
+  "Pressão na saída do domínio [Pa]": 1e5,
+  "Velocidade do som do gás [m/s]": 316.23,
+  "Velocidade do som do líquido [m/s]": 1000, 
+  "Número de segmentos": 300,
+  "CFL": 0.4,
+  "Tolerância para a pressão": 1e-3,
+  "Tolerância para a velocidades": 1e-3,
+  "Tolerância para as frações": 1e-3
+}
