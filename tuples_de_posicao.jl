@@ -17,7 +17,7 @@ function omega_face(
     return omegaface((P=P, E=E, e=e))
 end
 
-const mainface = NamedTuple{(:BC, :P, :E, :e),Tuple{Float64,SubArray{Float64,1},SubArray{Float64,1},SubArray{Float64,1}}}
+const mainface = NamedTuple{(:P, :E, :e),Tuple{SubArray{Float64,1},SubArray{Float64,1},SubArray{Float64,1}}}
 function maingrid_face(
     ϕk::Vector{Float64},
     ωk::omegaface,
@@ -27,16 +27,15 @@ function maingrid_face(
     # dos valores dos centros das células nas equações de
     # conservação do momento
 
-    BC = ϕk[1]
     P = @view ϕk[1:N-1]
     E = @view ϕk[2:N]
     ϕk_interp = upwind_interpolation(ϕk, ωk.e, N)
     e = @view ϕk_interp[2:N]
 
-    return mainface((BC=BC, P=P, E=E, e=e))
+    return mainface((P=P, E=E, e=e))
 end
 
-const subface = NamedTuple{(:BC, :w, :e, :ee),Tuple{Float64,SubArray{Float64,1},SubArray{Float64,1},SubArray{Float64,1}}}
+const subface = NamedTuple{(:w, :e, :ee),Tuple{SubArray{Float64,1},SubArray{Float64,1},SubArray{Float64,1}}}
 function subgrid_face(
     ϕk::Vector{Float64},
     N::Int64
@@ -45,12 +44,11 @@ function subgrid_face(
     # dos valores das faces das células nas equações de
     # conservação do momento
 
-    BC = ϕk[1]
     w = @view ϕk[1:N-1]
     e = @view ϕk[2:N]
     ee = @view ϕk[3:N+1]
 
-    return subface((BC=BC, w=w, e=e, ee=ee))
+    return subface((w=w, e=e, ee=ee))
 end
 
 const omegacenter = NamedTuple{(:W, :P, :E),Tuple{SubArray{Float64,1},SubArray{Float64,1},SubArray{Float64,1}}}
@@ -69,7 +67,7 @@ function omega_center(
     return omegacenter((W=W, P=P, E=E))
 end
 
-const maincenter = NamedTuple{(:BC, :P, :w, :e),Tuple{Float64,SubArray{Float64,1},SubArray{Float64,1},SubArray{Float64,1}}}
+const maincenter = NamedTuple{(:P, :w, :e),Tuple{SubArray{Float64,1},SubArray{Float64,1},SubArray{Float64,1}}}
 function maingrid_center(
     ϕk::Vector{Float64},
     ωk::omegacenter,
@@ -79,16 +77,15 @@ function maingrid_center(
     # dos valores dos centros das células nas equações de 
     # continuidade e de correção de pressão
 
-    BC = ϕk[1]
     P = @view ϕk[2:N-1]
     ϕk_interp = upwind_interpolation(ϕk, ωk.P, N - 1)
     e = @view ϕk_interp[3:N]
     w = @view ϕk_interp[2:N-1]
 
-    return maincenter((BC=BC, P=P, w=w, e=e))
+    return maincenter((P=P, w=w, e=e))
 end
 
-const subcenter = NamedTuple{(:BC, :w, :e),Tuple{Float64,SubArray{Float64,1},SubArray{Float64,1}}}
+const subcenter = NamedTuple{(:w, :e),Tuple{SubArray{Float64,1},SubArray{Float64,1}}}
 function subgrid_center(
     ϕk::Vector{Float64},
     N::Int64
@@ -97,9 +94,8 @@ function subgrid_center(
     # dos valores das faces das células nas equações de 
     # continuidade e de correção de pressão
 
-    BC = ϕk[1]
     w = @view ϕk[2:N-1]
     e = @view ϕk[3:N]
 
-    return subcenter((BC=BC, w=w, e=e))
+    return subcenter((w=w, e=e))
 end

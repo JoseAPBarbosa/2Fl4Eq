@@ -1,4 +1,4 @@
-include("./Tuples-de-posição.jl")
+include("./tuples_de_posicao.jl")
 using LinearAlgebra, JSON, Printf, Plots, CSV, DataFrames
 
 # Entrada de dados
@@ -60,49 +60,60 @@ e_αL = 1
 e_αG = 1
 e_P = 1
 
+#function CATHARE(
+#
+#)
+
 function momentum_linear_system(
-    ωk::omegaface,
-    αk::mainface,
-    ρk::mainface,
-    uk::subface,
-    uk_in::Float64,
-    P::mainface,
+    αk_Ø::Vector{Float64},
+    ρk_Ø::Vector{Float64},
+    uk_Ø::Vector{Float64},
+    P_Ø::Vector{Float64},
     CATHARE::Vector{Float64}
     )
-     
-    # Diagonal principal
-    uk_D = @. (         
-        + (αk.e*ρk.e)/Δt
-        + (ωk.E/2 + ωk.P/2)*(αk.e*ρk.e*uk.e)/Δx
-        )                                           # Sg,   2:N,    N-1
+    
+    # Inicialização dos Tuples de posição
+    ωk = omega_face(uk_Ø, N)
+    αk = maingrid_face(αk_Ø, ωk.e, N)
+    ρk = maingrid_face(ρk_Ø, ωk.e, N)
+    uk = subgrid_face(uk_Ø, N)
+    P = maingrid_face(P_Ø, ωG.e, N)
+
+    # Matriz A
+    ## Diagonal principal
+    uk_D = @. (     # Sg,   2:N,    N-1
+        (αk.e*ρk.e)/Δt + (ωk.E/2 + ωk.P/2)*(αk.e*ρk.e*uk.e)/Δx
+        )
     uk_D_in = 1.0                                   # CC,   i=1,    1
     uk_D_out = 1.0                                  # CC,   i=N+1,  1
-    uk_D = vcat([uk_D_in], uk_D, [uk_D_out])        # Sg,   1:N+1,  N+1
-    
-    # Diagonal superior
+    uk_D = vcat([uk_D_in], uk_D, [uk_D_out])        # Sg,   1:N+1,  N+1    
+    ## Diagonal superior
     uk_DU = @. (1/2 - ωk.E/2)*(αk.e*ρk.e*uk.e)/Δx   # Sg,   3:N+1,  N-1
     uk_DU_in = 0.0                                  # CC,   i=2,    1
     uk_DU = vcat([uk_DU_in], uk_DU)                 # Sg,   2:N+1,  N
-    
-    # Diagonal inferior
+    ## Diagonal inferior
     uk_DL = @. - (1/2 + ωk.P/2)*(αk.e*ρk.e*uk.e)/Δx     # Sg,   1:N-1   N-1
     uk_DL_out = -1.0                                    # CC,   i=N,    1
-    uk_DL = vcat(uk_DL, [uk_DL_out])                    # Sg,   1:N,    
+    uk_DL = vcat(uk_DL, [uk_DL_out])                    # Sg,   1:N,    N
+    ## Construção da matriz A
+    uk_A = Tridiagonal(uk_DL, uk_D, uk_DU)
     
-    # Vetor B
-    uk_B = @. (
+    # Vetor b
+    uk_b = @. (                         # Sg,   2:N,    N-1
         + (αk.e*ρk.e*uk.e)/Δt           # Termo u
         + αk.e*ρk.e*g*sin(θ)            # Termo g
         + αk.e*(P.P - P.E)/Δx           # Termo ΔP
         + CATHARE*(αk.E - αk.P)/Δx      # Termo ΔPi
-    )                                   # Sg,   2:N,    N-1
-    uk_B_in = uk_in                                 # CC,   i=1,    1
-    uk_B_out = 0.0                                  # CC,   i=N+1,  1
-    uk_B = vcat([uk_B_in], uk_B, [uk_B_out])        # Sg,   1:N+1,  N+1
+    )
+    uk_b_in = uk_Ø[1]                               # CC,   i=1,    1
+    uk_b_out = 0.0                                  # CC,   i=N+1,  1
+    uk_b = vcat([uk_b_in], uk_B, [uk_b_out])        # Sg,   1:N+1,  N+1
     
-    return uk_DL, uk_D, uk_DU, uk_B
-end
+    # Solução do sistema linear
+    uk_x = uk_A \ uk_b
 
+    return uk_x
+end
 
 function pressure_correction_linear_system(
     ωG::omegacenter,
@@ -121,53 +132,78 @@ function pressure_correction_linear_system(
     
     AGe = @. αG.e/Δx
     ALe = @. αL.e/Δx
-    aGe = @. (αG.e*ρG.e)/Δt + (ωG.E/2 + ωG.P/2) * (αG.e*ρG.e*uG.e)/Δx
-    aLe = @. (αL.e*ρL.e)/Δt + (ωL.E/2 + ωL.P/2) * (αL.e*ρL.e*uL.e)/Δx
+    aGe = @. (αG.e*ρG.e)/Δt + (ωG.E/2 + ωG.P/2)*(αG.e*ρG.e*uG.e)/Δx
+    aLe = @. (αL.e*ρL.e)/Δt + (ωL.E/2 + ωL.P/2)*(αL.e*ρL.e*uL.e)/Δx
 
     AGw = @. αG.w/Δx
     ALw = @. αL.w/Δx
-    aGw = @. (αG.w*ρG.w)/Δt + (ωG.P/2 + ωG.W/2) * (αG.w*ρG.w*uG.w)/Δx
-    aLw = @. (αL.w*ρL.w)/Δt + (ωL.P/2 + ωL.W/2) * (αL.w*ρL.w*uL.w)/Δx
+    aGw = @. (αG.w*ρG.w)/Δt + (ωG.P/2 + ωG.W/2)*(αG.w*ρG.w*uG.w)/Δx
+    aLw = @. (αL.w*ρL.w)/Δt + (ωL.P/2 + ωL.W/2)*(αL.w*ρL.w*uL.w)/Δx
 
-    # Diagonal principal
+    # Matriz A
+    ## Diagonal principal
     δP_D = @. (
-        + (αG.e*ρG.e)/ρG_i * (AGe/aGe)
-        + (αG.w*ρG.w)/ρG_i * (AGw/aGw)
-        + (Δx/Δt)*(αG.P)/ρG_i * (1/cG^2)
-        + (αL.e*ρL.e)/ρL_i * (ALe/aLe)
-        + (αL.w*ρL.w)/ρL_i * (ALw/aLw)
-        + (Δx/Δt)*(αL.P)/ρL_i * (1/cL^2)
+        + (αG.e*ρG.e)/ρG.BC * (AGe/aGe)
+        + (αG.w*ρG.w)/ρG.BC * (AGw/aGw)
+        + (Δx/Δt)*(αG.P)/ρG.BC * (1/cG^2)
+        + (αL.e*ρL.e)/ρL.BC * (ALe/aLe)
+        + (αL.w*ρL.w)/ρL.BC * (ALw/aLw)
+        + (Δx/Δt)*(αL.P)/ρL.BC * (1/cL^2)
     )
     δP_D_in = 1.0
     δP_D_out = 1.0
     δP_D = vcat([δP_D_in], δP_D, [δP_D_out])
-    # Diagonal superior
+    ## Diagonal superior
     δP_DU = @. (
-        - (αG.e*ρG.e)/ρG_i * (AGe/aGe)
-        - (αL.e*ρL.e)/ρL_i * (ALe/aLe)
+        - (αG.e*ρG.e)/ρG.BC * (AGe/aGe)
+        - (αL.e*ρL.e)/ρL.BC * (ALe/aLe)
     )  
     δP_DU_in = -1.0
     δP_DU = vcat([δP_DU_in], δP_DU)
-    # Diagonal inferior
+    ## Diagonal inferior
     δP_DL = @. (
-        - (αG.w*ρG.w)/ρG_i * (AGw/aGw)
-        - (αL.w*ρL.w)/ρL_i * (ALw/aLw)
+        - (αG.w*ρG.w)/ρG.BC * (AGw/aGw)
+        - (αL.w*ρL.w)/ρL.BC * (ALw/aLw)
     )
     δP_DL_out = 0.0
     δP_DL = vcat(δP_DL, [δP_DL_out])
+    ## Construção da matriz A
+    δP_A = Tridiagonal(δP_DL, δP_D, δP_DU)
 
-    # Vetor B
-    δP_B = @. (
-        + ((αG.w*ρG.w*uG.w) - (αG.e*ρG.e*uG.e))/ρG_i
-        + ((αL.w*ρL.w*uL.w) - (αL.e*ρL.e*uL.e))/ρL_i
+    # Vetor b
+    δP_b = @. (
+        + ((αG.w*ρG.w*uG.w) - (αG.e*ρG.e*uG.e))/ρG.BC
+        + ((αL.w*ρL.w*uL.w) - (αL.e*ρL.e*uL.e))/ρL.BC
         + (Δx/Δt)*(
-            + ((αG_n.P*ρG_n.P) - (αG.P*ρG.P))/ρG_i
-            + ((αL_n.P*ρL_n.P) - (αL.P*ρL.P))/ρL_i
+            + ((αG_n.P*ρG_n.P) - (αG.P*ρG.P))/ρG.BC
+            + ((αL_n.P*ρL_n.P) - (αL.P*ρL.P))/ρL.BC
         )
     )
-    δP_B_in = 0.0
-    δP_B_out = 0.0
-    δP_B = vcat([δP_B_in], δP_B, [δP_B_out])
+    δP_b_in = 0.0
+    δP_b_out = 0.0
+    δP_b = vcat([δP_b_in], δP_b, [δP_b_out])
+
+    # Solução do sistema linear
+    δP_x = δP_A \ δP_b
+
+    # Correção dos valores
+    ## Correção das massas específicas
+    ### Fase gasosa
+    ρØ_G = @. ρØ_G + (1/cG^2)*δP_x
+    ### Fase líquida
+    ρØ_L = @. ρØ_L + (1/cL^2)*δP_x
+
+    ## Correção das velocidades
+    ### Fase gasosa
+    uØ_G[2:N] = @. uØ_G[2:N] + (A.G/a.G)*(δP_[1:N-1] - δP_[2:N]) #<--------
+    uØ_G[N+1] = uØ_G[N]
+    ### Fase líquida
+    uØ_L[2:N] = @. uØ_L[2:N] + (A.G/a.G)*(δP_[1:N-1] - δP_[2:N]) #<----------
+    uØ_L[N+1] = uØ_L[N]
+
+    ## Correção da pressão
+    PØ_ = @. PØ_ + δP_
+
     return δP_DL, δP_D, δP_DU, δP_B
 end
 
@@ -202,7 +238,7 @@ function void_fraction_linear_system(
 
     # Vetor B
     α_B = @. (αk_n.P*ρk_n.P)/Δt
-    α_B_in = αk_in
+    α_B_in = αk.BC
     α_B_out = 0.0
     α_B = append!([α_B_in], α_B, [α_B_out])
 
@@ -220,34 +256,12 @@ while (cont < 1) || (e_uL < Tol_u && e_uG < Tol_u && e_αL < Tol_α && e_αG < T
 
     # Equação do momento ----------------------------------------------------------------------------------------------------------------------------
 
-    ## Inicialização dos Tuples de posição
-    ### Fase gasosa
-    ωG = omega_face(uØ_G, N)
-    αØG = maingrid_face(αØ_G, ωG, N)
-    ρØG = maingrid_face(ρØ_G, ωG, N)
-    uØG = subgrid_face(uØ_G, N)
-    PØ = maingrid_face(PØ_, ωG, N)
-    ### Fase líquida
-    ωL = omega_face(uØ_L, N)
-    αØL = maingrid_face(αØ_L, ωL, N)
-    ρØL = maingrid_face(ρØ_L, ωL, N)
-    uØL = subgrid_face(uØ_L, N)
-    PØ = maingrid_face(PØ_, ωL, N)
-
-    ## Sistema linear das equacoes de momento
+    ## Solução das equacoes de momento
     CATHARE = @. γ * (
-        (αØG.e*αØL.e*ρØG.e*ρØL.e) * (uØG.e - uØL.e)^2 / (αØG.e*ρØL.e + αØL.e*ρØG.e)
-    )
-    ### Fase gasosa
-    uG_DL, uG_D, uG_DU, uG_B = momentum_linear_system(ωG, αØG, ρØG, uØG, uG_in, PØ, CATHARE)
-    uG_A = Tridiagonal(uG_DL, uG_D, uG_DU)
-    ### Fase líquida
-    uL_DL, uL_D, uL_DU, uL_B = momentum_linear_system(ωL, αØL, ρØL, uØL, uL_in, PØ, CATHARE)
-    uL_A = Tridiagonal(uL_DL, uL_D, uL_DU)
-    ### Solução do sistema linear
-    uØ_G[:] = uG_A \ uG_B
-    uØ_L[:] = uL_A \ uL_B
-
+        (αØG.e*αØL.e*ρØG.e*ρØL.e)*(uØG.e - uØL.e)^2 / (αØG.e*ρØL.e + αØL.e*ρØG.e)
+    )αØ_G[2:N]
+    uØ_G = momentum_equation(ωG, αØG, ρØG, uØG, PØ, CATHARE)
+    uØ_L = momentum_equation(ωL, αØL, ρØL, uØL, PØ, CATHARE)
 
     # Equação de correção de pressão ----------------------------------------------------------------------------------------------------------------
     
@@ -275,22 +289,7 @@ while (cont < 1) || (e_uL < Tol_u && e_uG < Tol_u && e_αL < Tol_α && e_αG < T
     ### Solução do sistema linear
     δP_ = δP_A \ δP_B
 
-    ## Correção das massas específicas
-    ### Fase gasosa
-    ρØ_G = @. ρØ_G + (1/cG^2)*δP_
-    ### Fase líquida
-    ρØ_L = @. ρØ_L + (1/cL^2)*δP_
 
-    ## Correção das velocidades
-    ### Fase gasosa
-    uØ_G[2:N] = @. uØ_G[2:N] + (A.G/a.G)*(δP_[1:N-1] - δP_[2:N]) #<--------
-    uØ_G[N+1] = uØ_G[N]
-    ### Fase líquida
-    uØ_L[2:N] = @. uØ_L[2:N] + (A.G/a.G)*(δP_[1:N-1] - δP_[2:N]) #<----------
-    uØ_L[N+1] = uØ_L[N]
-
-    ## Correção da pressão
-    PØ_ = @. PØ_ + δP_
 
 
     # Equação de conservação ------------------------------------------------------------------------------------------------------------------------
