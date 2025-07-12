@@ -60,25 +60,49 @@ e_αL = 1
 e_αG = 1
 e_P = 1
 
-#function CATHARE(
-#
-#)
+function momentum_conservation_equation(
+    αØ_g::Vector{Float64},
+    ρØ_g::Vector{Float64},
+    uØ_g::Vector{Float64},
+    αØ_l::Vector{Float64},
+    ρØ_l::Vector{Float64},
+    uØ_l::Vector{Float64},
+    PØ_::Vector{Float64}
+)
+
+    uØ_g_in = uØ_g[1]
+    uØ_l_in = uØ_l[1]
+
+    ωg = omega_face(uØ_g, N)
+    αg = maingrid_face(αØ_g, ωg, N)
+    ρg = maingrid_face(ρØ_g, ωg, N)
+    ug = subgrid_face(uØ_g, N)
+    ωl = omega_face(uØ_l, N)
+    αl = maingrid_face(αØ_l, ωl, N)
+    ρl = maingrid_face(ρØ_l, ωl, N)
+    ul = subgrid_face(uØ_l, N)
+    P = maingrid_face(PØ_, ωl, N)
+
+    CATHARE = @. γ * (
+        (αg.e*αl.e*ρg.e*ρl.e)*(ug.e - ul.e)^2 / (αg.e*ρl.e + αl.e*ρg.e)
+    )
+
+    uØ_g = momentum_linear_system(ωg, αg, ρg, ug, P, CATHARE, uØ_g_in)
+    uØ_l = momentum_linear_system(ωl, αl, ρl, ul, P, CATHARE, uØ_l_in)
+    
+    return uØ_g, uØ_l
+end
 
 function momentum_linear_system(
-    αk_Ø::Vector{Float64},
-    ρk_Ø::Vector{Float64},
-    uk_Ø::Vector{Float64},
-    P_Ø::Vector{Float64},
-    CATHARE::Vector{Float64}
+    ωk::omegaface,
+    αk::mainface,
+    ρk::mainface,
+    uk::subface,
+    P::mainface,
+    CATHARE::Vector{Float64},
+    uk_in::Float64
     )
     
-    # Inicialização dos Tuples de posição
-    ωk = omega_face(uk_Ø, N)
-    αk = maingrid_face(αk_Ø, ωk.e, N)
-    ρk = maingrid_face(ρk_Ø, ωk.e, N)
-    uk = subgrid_face(uk_Ø, N)
-    P = maingrid_face(P_Ø, ωG.e, N)
-
     # Matriz A
     ## Diagonal principal
     uk_D = @. (     # Sg,   2:N,    N-1
@@ -105,9 +129,9 @@ function momentum_linear_system(
         + αk.e*(P.P - P.E)/Δx           # Termo ΔP
         + CATHARE*(αk.E - αk.P)/Δx      # Termo ΔPi
     )
-    uk_b_in = uk_Ø[1]                               # CC,   i=1,    1
+    uk_b_in = uk_in                                 # CC,   i=1,    1
     uk_b_out = 0.0                                  # CC,   i=N+1,  1
-    uk_b = vcat([uk_b_in], uk_B, [uk_b_out])        # Sg,   1:N+1,  N+1
+    uk_b = vcat([uk_b_in], uk_b, [uk_b_out])        # Sg,   1:N+1,  N+1
     
     # Solução do sistema linear
     uk_x = uk_A \ uk_b
@@ -115,19 +139,19 @@ function momentum_linear_system(
     return uk_x
 end
 
-function pressure_correction_linear_system(
-    ωG::omegacenter,
-    αG::maincenter,
-    ρG::maincenter,
-    uG::subcenter,
-    αG_n::maincenter,
-    ρG_n::maincenter,
-    ωL::omegacenter,
-    αL::maincenter,
-    ρL::maincenter,
-    uL::subcenter,
-    αL_n::maincenter,
-    ρL_n::maincenter
+function pressure_correction_equation(
+    ωØ_g::omegacenter,
+    αØ_g::maincenter,
+    ρØ_g::maincenter,
+    uØ_g::subcenter,
+    αØ_gn::maincenter,
+    ρØ_gn::maincenter,
+    ωØ_l::omegacenter,
+    αØ_l::maincenter,
+    ρØ_l::maincenter,
+    uØ_l::subcenter,
+    αØ_ln::maincenter,
+    ρØ_ln::maincenter
     )
     
     AGe = @. αG.e/Δx
@@ -255,15 +279,11 @@ while (cont < 1) || (e_uL < Tol_u && e_uG < Tol_u && e_αL < Tol_α && e_αG < T
     local ωG, αØG, ρØG, uØG, ωL, αØL, ρØL, uØL, PØ
 
     # Equação do momento ----------------------------------------------------------------------------------------------------------------------------
-
-    ## Solução das equacoes de momento
-    CATHARE = @. γ * (
-        (αØG.e*αØL.e*ρØG.e*ρØL.e)*(uØG.e - uØL.e)^2 / (αØG.e*ρØL.e + αØL.e*ρØG.e)
-    )αØ_G[2:N]
-    uØ_G = momentum_equation(ωG, αØG, ρØG, uØG, PØ, CATHARE)
-    uØ_L = momentum_equation(ωL, αØL, ρØL, uØL, PØ, CATHARE)
-
-    # Equação de correção de pressão ----------------------------------------------------------------------------------------------------------------
+    uØ_G, uØ_L = momentum_conservation_equation(αØ_G, ρØ_G, uØ_G, 
+                                                αØ_L, ρØ_L, uØ_L, 
+                                                PØ_)
+    
+    #= Equação de correção de pressão ----------------------------------------------------------------------------------------------------------------
     
     ## Atualização dos Tuples de posição
     ### Fase gasosa
@@ -322,7 +342,7 @@ while (cont < 1) || (e_uL < Tol_u && e_uG < Tol_u && e_αL < Tol_α && e_αG < T
     ### Solução do sistema linear
     αØ_G[:] = αG_A \ αG_B
     αØ_L[:] = αL_A \ αL_B
-    
+    =#
 
     # Atualização dos supostos ----------------------------------------------------------------------------------------------------------------------
 #=
