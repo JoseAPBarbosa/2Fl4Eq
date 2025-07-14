@@ -105,33 +105,33 @@ function momentum_linear_system(
     
     # Matriz A
     ## Diagonal principal
-    uk_D = @. (     # Sg,   2:N,    N-1
+    uk_D = @. (
         (αk.e*ρk.e)/Δt + (ωk.E/2 + ωk.P/2)*(αk.e*ρk.e*uk.e)/Δx
         )
-    uk_D_in = 1.0                                   # CC,   i=1,    1
-    uk_D_out = 1.0                                  # CC,   i=N+1,  1
-    uk_D = vcat([uk_D_in], uk_D, [uk_D_out])        # Sg,   1:N+1,  N+1    
+    uk_D_in = 1.0
+    uk_D_out = 1.0
+    uk_D = vcat([uk_D_in], uk_D, [uk_D_out])
     ## Diagonal superior
-    uk_DU = @. (1/2 - ωk.E/2)*(αk.e*ρk.e*uk.e)/Δx   # Sg,   3:N+1,  N-1
-    uk_DU_in = 0.0                                  # CC,   i=2,    1
-    uk_DU = vcat([uk_DU_in], uk_DU)                 # Sg,   2:N+1,  N
+    uk_DU = @. (1/2 - ωk.E/2)*(αk.e*ρk.e*uk.e)/Δx
+    uk_DU_in = 0.0
+    uk_DU = vcat([uk_DU_in], uk_DU)
     ## Diagonal inferior
-    uk_DL = @. - (1/2 + ωk.P/2)*(αk.e*ρk.e*uk.e)/Δx     # Sg,   1:N-1   N-1
-    uk_DL_out = -1.0                                    # CC,   i=N,    1
-    uk_DL = vcat(uk_DL, [uk_DL_out])                    # Sg,   1:N,    N
+    uk_DL = @. - (1/2 + ωk.P/2)*(αk.e*ρk.e*uk.e)/Δx
+    uk_DL_out = -1.0
+    uk_DL = vcat(uk_DL, [uk_DL_out])
     ## Construção da matriz A
     uk_A = Tridiagonal(uk_DL, uk_D, uk_DU)
     
     # Vetor b
-    uk_b = @. (                         # Sg,   2:N,    N-1
-        + (αk.e*ρk.e*uk.e)/Δt           # Termo u
-        + αk.e*ρk.e*g*sin(θ)            # Termo g
-        + αk.e*(P.P - P.E)/Δx           # Termo ΔP
-        + CATHARE*(αk.E - αk.P)/Δx      # Termo ΔPi
+    uk_b = @. (
+        + (αk.e*ρk.e*uk.e)/Δt
+        + αk.e*ρk.e*g*sin(θ)
+        + αk.e*(P.P - P.E)/Δx
+        + CATHARE*(αk.E - αk.P)/Δx
     )
-    uk_b_in = uk_in                                 # CC,   i=1,    1
-    uk_b_out = 0.0                                  # CC,   i=N+1,  1
-    uk_b = vcat([uk_b_in], uk_b, [uk_b_out])        # Sg,   1:N+1,  N+1
+    uk_b_in = uk_in
+    uk_b_out = 0.0
+    uk_b = vcat([uk_b_in], uk_b, [uk_b_out])
     
     # Solução do sistema linear
     uk_x = uk_A \ uk_b
@@ -140,13 +140,11 @@ function momentum_linear_system(
 end
 
 function pressure_correction_equation(
-    ωØ_g::omegacenter,
     αØ_g::maincenter,
     ρØ_g::maincenter,
     uØ_g::subcenter,
     αØ_gn::maincenter,
     ρØ_gn::maincenter,
-    ωØ_l::omegacenter,
     αØ_l::maincenter,
     ρØ_l::maincenter,
     uØ_l::subcenter,
@@ -154,40 +152,56 @@ function pressure_correction_equation(
     ρØ_ln::maincenter
     )
     
-    AGe = @. αG.e/Δx
-    ALe = @. αL.e/Δx
-    aGe = @. (αG.e*ρG.e)/Δt + (ωG.E/2 + ωG.P/2)*(αG.e*ρG.e*uG.e)/Δx
-    aLe = @. (αL.e*ρL.e)/Δt + (ωL.E/2 + ωL.P/2)*(αL.e*ρL.e*uL.e)/Δx
+    ρg_ref = ρØ_g[1]
+    ρl_ref = ρØ_l[1]
 
-    AGw = @. αG.w/Δx
-    ALw = @. αL.w/Δx
-    aGw = @. (αG.w*ρG.w)/Δt + (ωG.P/2 + ωG.W/2)*(αG.w*ρG.w*uG.w)/Δx
-    aLw = @. (αL.w*ρL.w)/Δt + (ωL.P/2 + ωL.W/2)*(αL.w*ρL.w*uL.w)/Δx
+    ωg = omega_center(uØ_g, N)
+    αg = maingrid_center(αØ_g, ωg, N)
+    ρg = maingrid_center(ρØ_g, ωg, N)
+    ug = subgrid_center(uØ_g, N)
+    αg_n = maingrid_center(αØ_gn, ωg, N)
+    ρg_n = maingrid_center(ρØ_gn, ωg, N)
+    ωl = omega_center(uØ_l, N)
+    αl = maingrid_center(αØ_l, ωl, N)
+    ρl = maingrid_center(ρØ_l, ωl, N)
+    αl_n = maingrid_center(αØ_ln, ωg, N)
+    ρl_n = maingrid_center(ρØ_ln, ωg, N)
+    ul = subgrid_center(uØ_l, N)
+
+    Ag_e = @. αg.e/Δx
+    Al_e = @. αl.e/Δx
+    ag_e = @. (αg.e*ρg.e)/Δt + (ωg.E/2 + ωg.P/2)*(αg.e*ρg.e*ug.e)/Δx
+    al_e = @. (αl.e*ρl.e)/Δt + (ωg.E/2 + ωl.P/2)*(αl.e*ρl.e*ul.e)/Δx
+
+    Ag_w = @. αg.w/Δx
+    Al_w = @. αl.w/Δx
+    ag_w = @. (αg.w*ρg.w)/Δt + (ωg.P/2 + ωg.W/2)*(αg.w*ρg.w*ug.w)/Δx
+    al_w = @. (αl.w*ρl.w)/Δt + (ωl.P/2 + ωl.W/2)*(αl.w*ρl.w*ul.w)/Δx
 
     # Matriz A
     ## Diagonal principal
     δP_D = @. (
-        + (αG.e*ρG.e)/ρG.BC * (AGe/aGe)
-        + (αG.w*ρG.w)/ρG.BC * (AGw/aGw)
-        + (Δx/Δt)*(αG.P)/ρG.BC * (1/cG^2)
-        + (αL.e*ρL.e)/ρL.BC * (ALe/aLe)
-        + (αL.w*ρL.w)/ρL.BC * (ALw/aLw)
-        + (Δx/Δt)*(αL.P)/ρL.BC * (1/cL^2)
+        + (αg.e*ρg.e)/ρg_ref * (Ag_e/ag_e)
+        + (αg.w*ρg.w)/ρg_ref * (Ag_w/ag_w)
+        + (Δx/Δt)*(αg.P)/ρg_ref * (1/cG^2)
+        + (αl.e*ρl.e)/ρl_ref * (Al_e/al_e)
+        + (αl.w*ρl.w)/ρl_ref * (Al_w/al_w)
+        + (Δx/Δt)*(αl.P)/ρl_ref * (1/cL^2)
     )
     δP_D_in = 1.0
     δP_D_out = 1.0
     δP_D = vcat([δP_D_in], δP_D, [δP_D_out])
     ## Diagonal superior
     δP_DU = @. (
-        - (αG.e*ρG.e)/ρG.BC * (AGe/aGe)
-        - (αL.e*ρL.e)/ρL.BC * (ALe/aLe)
+        - (αg.e*ρg.e)/ρg_ref * (Ag_e/ag_e)
+        - (αl.e*ρl.e)/ρl_ref * (Al_e/al_e)
     )  
     δP_DU_in = -1.0
     δP_DU = vcat([δP_DU_in], δP_DU)
     ## Diagonal inferior
     δP_DL = @. (
-        - (αG.w*ρG.w)/ρG.BC * (AGw/aGw)
-        - (αL.w*ρL.w)/ρL.BC * (ALw/aLw)
+        - (αg.w*ρg.w)/ρg_ref * (Ag_w/ag_w)
+        - (αl.w*ρl.w)/ρl_ref * (Al_w/al_w)
     )
     δP_DL_out = 0.0
     δP_DL = vcat(δP_DL, [δP_DL_out])
@@ -196,11 +210,11 @@ function pressure_correction_equation(
 
     # Vetor b
     δP_b = @. (
-        + ((αG.w*ρG.w*uG.w) - (αG.e*ρG.e*uG.e))/ρG.BC
-        + ((αL.w*ρL.w*uL.w) - (αL.e*ρL.e*uL.e))/ρL.BC
+        + ((αg.w*ρg.w*ug.w) - (αg.e*ρg.e*ug.e))/ρg_ref
+        + ((αl.w*ρl.w*ul.w) - (αl.e*ρl.e*ul.e))/ρl_ref
         + (Δx/Δt)*(
-            + ((αG_n.P*ρG_n.P) - (αG.P*ρG.P))/ρG.BC
-            + ((αL_n.P*ρL_n.P) - (αL.P*ρL.P))/ρL.BC
+            + ((αg_n.P*ρg_n.P) - (αg.P*ρg.P))/ρg_ref
+            + ((αl_n.P*ρl_n.P) - (αL.P*ρL.P))/ρl_ref
         )
     )
     δP_b_in = 0.0
@@ -213,9 +227,9 @@ function pressure_correction_equation(
     # Correção dos valores
     ## Correção das massas específicas
     ### Fase gasosa
-    ρØ_G = @. ρØ_G + (1/cG^2)*δP_x
+    ρØ_g = @. ρØ_g + (1/cG^2)*δP_x
     ### Fase líquida
-    ρØ_L = @. ρØ_L + (1/cL^2)*δP_x
+    ρØ_l = @. ρØ_l + (1/cL^2)*δP_x
 
     ## Correção das velocidades
     ### Fase gasosa
