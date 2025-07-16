@@ -2,7 +2,8 @@ include("./position_tuples.jl")
 using LinearAlgebra
 
 
-function momentum_conservation_equation(
+# Equações de momento
+function momentum_conservation_equation_solver(
     αØ_g::Vector{Float64},
     ρØ_g::Vector{Float64},
     uØ_g::Vector{Float64},
@@ -35,7 +36,55 @@ function momentum_conservation_equation(
     return uØ_G, uØ_L
 end
 
-function pressure_correction_equation(
+function momentum_linear_system(
+    ωk::faceomega,
+    αk::facemaingrid,
+    ρk::facemaingrid,
+    uk::facesubgrid,
+    P::facemaingrid,
+    CATHARE::Vector{Float64},
+    uk_in::Float64
+    )
+    
+    # Matriz A
+    ## Diagonal principal
+    uk_D = @. (
+        (αk.e*ρk.e)/Δt + (ωk.E/2 + ωk.P/2)*(αk.e*ρk.e*uk.e)/Δx
+        )
+    uk_D_in = 1.0
+    uk_D_out = 1.0
+    uk_D = vcat([uk_D_in], uk_D, [uk_D_out])
+    ## Diagonal superior
+    uk_DU = @. (1/2 - ωk.E/2)*(αk.e*ρk.e*uk.e)/Δx
+    uk_DU_in = 0.0
+    uk_DU = vcat([uk_DU_in], uk_DU)
+    ## Diagonal inferior
+    uk_DL = @. - (1/2 + ωk.P/2)*(αk.e*ρk.e*uk.e)/Δx
+    uk_DL_out = -1.0
+    uk_DL = vcat(uk_DL, [uk_DL_out])
+    ## Construção da matriz A
+    uk_A = Tridiagonal(uk_DL, uk_D, uk_DU)
+    
+    # Vetor b
+    uk_b = @. (
+        + (αk.e*ρk.e*uk.e)/Δt
+        + αk.e*ρk.e*g*sin(θ)
+        + αk.e*(P.P - P.E)/Δx
+        + CATHARE*(αk.E - αk.P)/Δx
+    )
+    uk_b_in = uk_in
+    uk_b_out = 0.0
+    uk_b = vcat([uk_b_in], uk_b, [uk_b_out])
+    
+    # Solução do sistema linear
+    uk_x = uk_A \ uk_b
+
+    return uk_x
+end
+
+
+# Equação de correção de pressão
+function pressure_correction_equation_solver(
     αØ_g::Vector{Float64},
     ρØ_g::Vector{Float64},
     uØ_g::Vector{Float64},
@@ -62,7 +111,6 @@ function pressure_correction_equation(
     αl = center_maingrid(αØ_l, ωl, N)
     ρl = center_maingrid(ρØ_l, ωl, N)
     ul = center_subgrid(uØ_l, N)
-    P = center_maingrid(PØ_, ωl, N)
 
     αg_n = center_maingrid(α_g, ωg, N)
     ρg_n = center_maingrid(ρ_g, ωg, N)
@@ -117,19 +165,13 @@ function pressure_correction_equation(
 
     # Correção dos valores
     ## Correção das massas específicas
-    ### Fase gasosa
     ρØ_G = @. ρØ_g + (1/cG^2)*δP_x
-    ### Fase líquida
     ρØ_G = @. ρØ_l + (1/cL^2)*δP_x
-
     ## Correção das velocidades
-    ### Fase gasosa
     uØ_G[2:N] = @. uØ_g[2:N] + (A_g/a_g)*(δP_x[1:N-1] - δP_x[2:N])
     uØ_G[N+1] = uØ_g[N]
-    ### Fase líquida
     uØ_L[2:N] = @. uØ_l[2:N] + (A_l/a_l)*(δP_x[1:N-1] - δP_x[2:N])
     uØ_L[N+1] = uØ_l[N]
-
     ## Correção da pressão
     PØ_ = @. PØ_ + δP_x
     
@@ -179,7 +221,9 @@ function momentum_coefficients_for_pressure_equation(
     return A_g, A_l, a_g, a_l, Ag, Al, ag, al
 end
 
-function void_fraction_equation(
+
+# Equações de fração volumétrica
+function void_fraction_equation_solver(
     αØ_g::Vector{Float64},
     ρØ_g::Vector{Float64},
     uØ_g::Vector{Float64},
@@ -208,52 +252,6 @@ function void_fraction_equation(
     αØ_L = void_fraction_linear_system(ωl, ρl, ul, αl_n, ρl_n, αØ_l[1])
 
     return αØ_G, αØ_L
-end
-
-function momentum_linear_system(
-    ωk::faceomega,
-    αk::facemaingrid,
-    ρk::facemaingrid,
-    uk::facesubgrid,
-    P::facemaingrid,
-    CATHARE::Vector{Float64},
-    uk_in::Float64
-    )
-    
-    # Matriz A
-    ## Diagonal principal
-    uk_D = @. (
-        (αk.e*ρk.e)/Δt + (ωk.E/2 + ωk.P/2)*(αk.e*ρk.e*uk.e)/Δx
-        )
-    uk_D_in = 1.0
-    uk_D_out = 1.0
-    uk_D = vcat([uk_D_in], uk_D, [uk_D_out])
-    ## Diagonal superior
-    uk_DU = @. (1/2 - ωk.E/2)*(αk.e*ρk.e*uk.e)/Δx
-    uk_DU_in = 0.0
-    uk_DU = vcat([uk_DU_in], uk_DU)
-    ## Diagonal inferior
-    uk_DL = @. - (1/2 + ωk.P/2)*(αk.e*ρk.e*uk.e)/Δx
-    uk_DL_out = -1.0
-    uk_DL = vcat(uk_DL, [uk_DL_out])
-    ## Construção da matriz A
-    uk_A = Tridiagonal(uk_DL, uk_D, uk_DU)
-    
-    # Vetor b
-    uk_b = @. (
-        + (αk.e*ρk.e*uk.e)/Δt
-        + αk.e*ρk.e*g*sin(θ)
-        + αk.e*(P.P - P.E)/Δx
-        + CATHARE*(αk.E - αk.P)/Δx
-    )
-    uk_b_in = uk_in
-    uk_b_out = 0.0
-    uk_b = vcat([uk_b_in], uk_b, [uk_b_out])
-    
-    # Solução do sistema linear
-    uk_x = uk_A \ uk_b
-
-    return uk_x
 end
 
 function void_fraction_linear_system(
