@@ -1,4 +1,4 @@
-include("./interpoladores.jl")
+include("./interpolators.jl")
 
 const faceomega = NamedTuple{(:P, :E, :e),Tuple{SubArray{Float64,1},SubArray{Float64,1},SubArray{Float64,1}}}
 function face_omega(

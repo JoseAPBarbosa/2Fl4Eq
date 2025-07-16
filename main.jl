@@ -1,4 +1,4 @@
-include("./tuples_de_posicao.jl")
+include("./position_tuples.jl")
 using LinearAlgebra, JSON, Printf, Plots, CSV, DataFrames
 
 # Entrada de dados
