@@ -73,32 +73,32 @@ function momentum_conservation_equation(
     uØ_g_in = uØ_g[1]
     uØ_l_in = uØ_l[1]
 
-    ωg = omega_face(uØ_g, N)
-    αg = maingrid_face(αØ_g, ωg, N)
-    ρg = maingrid_face(ρØ_g, ωg, N)
-    ug = subgrid_face(uØ_g, N)
-    ωl = omega_face(uØ_l, N)
-    αl = maingrid_face(αØ_l, ωl, N)
-    ρl = maingrid_face(ρØ_l, ωl, N)
-    ul = subgrid_face(uØ_l, N)
-    P = maingrid_face(PØ_, ωl, N)
+    ωg = face_omega(uØ_g, N)
+    αg = face_maingrid(αØ_g, ωg, N)
+    ρg = face_maingrid(ρØ_g, ωg, N)
+    ug = face_subgrid(uØ_g, N)
+    ωl = face_omega(uØ_l, N)
+    αl = face_maingrid(αØ_l, ωl, N)
+    ρl = face_maingrid(ρØ_l, ωl, N)
+    ul = face_subgrid(uØ_l, N)
+    P = face_maingrid(PØ_, ωl, N)
 
     CATHARE = @. γ * (
         (αg.e*αl.e*ρg.e*ρl.e)*(ug.e - ul.e)^2 / (αg.e*ρl.e + αl.e*ρg.e)
     )
 
-    uØ_g = momentum_linear_system(ωg, αg, ρg, ug, P, CATHARE, uØ_g_in)
-    uØ_l = momentum_linear_system(ωl, αl, ρl, ul, P, CATHARE, uØ_l_in)
+    uØ_G = momentum_linear_system(ωg, αg, ρg, ug, P, CATHARE, uØ_g_in)
+    uØ_L = momentum_linear_system(ωl, αl, ρl, ul, P, CATHARE, uØ_l_in)
     
-    return uØ_g, uØ_l
+    return uØ_G, uØ_L
 end
 
 function momentum_linear_system(
-    ωk::omegaface,
-    αk::mainface,
-    ρk::mainface,
-    uk::subface,
-    P::mainface,
+    ωk::faceomega,
+    αk::facemaingrid,
+    ρk::facemaingrid,
+    uk::facesubgrid,
+    P::facemaingrid,
     CATHARE::Vector{Float64},
     uk_in::Float64
     )
@@ -140,52 +140,47 @@ function momentum_linear_system(
 end
 
 function pressure_correction_equation(
-    αØ_g::maincenter,
-    ρØ_g::maincenter,
-    uØ_g::subcenter,
-    αØ_gn::maincenter,
-    ρØ_gn::maincenter,
-    αØ_l::maincenter,
-    ρØ_l::maincenter,
-    uØ_l::subcenter,
-    αØ_ln::maincenter,
-    ρØ_ln::maincenter
+    αØ_g::Vector{Float64},
+    ρØ_g::Vector{Float64},
+    uØ_g::Vector{Float64},
+    αØ_l::Vector{Float64},
+    ρØ_l::Vector{Float64},
+    uØ_l::Vector{Float64},
+    PØ_::Vector{Float64},
+    α_g::Vector{Float64},  # valores em n
+    ρ_g::Vector{Float64},  # valores em n
+    α_l::Vector{Float64},  # valores em n
+    ρ_l::Vector{Float64}   # valores em n
     )
     
     ρg_ref = ρØ_g[1]
     ρl_ref = ρØ_l[1]
 
-    ωg = omega_center(uØ_g, N)
-    αg = maingrid_center(αØ_g, ωg, N)
-    ρg = maingrid_center(ρØ_g, ωg, N)
-    ug = subgrid_center(uØ_g, N)
-    αg_n = maingrid_center(αØ_gn, ωg, N)
-    ρg_n = maingrid_center(ρØ_gn, ωg, N)
-    ωl = omega_center(uØ_l, N)
-    αl = maingrid_center(αØ_l, ωl, N)
-    ρl = maingrid_center(ρØ_l, ωl, N)
-    αl_n = maingrid_center(αØ_ln, ωg, N)
-    ρl_n = maingrid_center(ρØ_ln, ωg, N)
-    ul = subgrid_center(uØ_l, N)
+    A_g, A_l, a_g, a_l, Ag, Al, ag, al = momentum_coefficients_for_pressure_equation(αØ_g, ρØ_g, uØ_g, αØ_l, ρØ_l, uØ_l)
+    
+    ωg = center_omega(uØ_g, N)
+    αg = center_maingrid(αØ_g, ωg, N)
+    ρg = center_maingrid(ρØ_g, ωg, N)
+    ug = center_subgrid(uØ_g, N)
+    ωl = center_omega(uØ_l, N)
+    αl = center_maingrid(αØ_l, ωl, N)
+    ρl = center_maingrid(ρØ_l, ωl, N)
+    ul = center_subgrid(uØ_l, N)
+    P = center_maingrid(PØ_, ωl, N)
 
-    Ag_e = @. αg.e/Δx
-    Al_e = @. αl.e/Δx
-    ag_e = @. (αg.e*ρg.e)/Δt + (ωg.E/2 + ωg.P/2)*(αg.e*ρg.e*ug.e)/Δx
-    al_e = @. (αl.e*ρl.e)/Δt + (ωg.E/2 + ωl.P/2)*(αl.e*ρl.e*ul.e)/Δx
-
-    Ag_w = @. αg.w/Δx
-    Al_w = @. αl.w/Δx
-    ag_w = @. (αg.w*ρg.w)/Δt + (ωg.P/2 + ωg.W/2)*(αg.w*ρg.w*ug.w)/Δx
-    al_w = @. (αl.w*ρl.w)/Δt + (ωl.P/2 + ωl.W/2)*(αl.w*ρl.w*ul.w)/Δx
+    αg_n = center_maingrid(α_g, ωg, N)
+    ρg_n = center_maingrid(ρ_g, ωg, N)
+    αl_n = center_maingrid(α_l, ωl, N)
+    ρl_n = center_maingrid(ρ_l, ωl, N)
 
     # Matriz A
     ## Diagonal principal
     δP_D = @. (
-        + (αg.e*ρg.e)/ρg_ref * (Ag_e/ag_e)
-        + (αg.w*ρg.w)/ρg_ref * (Ag_w/ag_w)
+        + (αg.e*ρg.e)/ρg_ref * (Ag.e/ag.e)
+        + (αg.w*ρg.w)/ρg_ref * (Ag.w/ag.w)
         + (Δx/Δt)*(αg.P)/ρg_ref * (1/cG^2)
-        + (αl.e*ρl.e)/ρl_ref * (Al_e/al_e)
-        + (αl.w*ρl.w)/ρl_ref * (Al_w/al_w)
+        + (αl.e*ρl.e)/ρl_ref * (Al.e/al.e)
+        + (αl.w*ρl.w)/ρl_ref * (Al.w/al.w)
         + (Δx/Δt)*(αl.P)/ρl_ref * (1/cL^2)
     )
     δP_D_in = 1.0
@@ -193,15 +188,15 @@ function pressure_correction_equation(
     δP_D = vcat([δP_D_in], δP_D, [δP_D_out])
     ## Diagonal superior
     δP_DU = @. (
-        - (αg.e*ρg.e)/ρg_ref * (Ag_e/ag_e)
-        - (αl.e*ρl.e)/ρl_ref * (Al_e/al_e)
+        - (αg.e*ρg.e)/ρg_ref * (Ag.e/ag.e)
+        - (αl.e*ρl.e)/ρl_ref * (Al.e/al.e)
     )  
     δP_DU_in = -1.0
     δP_DU = vcat([δP_DU_in], δP_DU)
     ## Diagonal inferior
     δP_DL = @. (
-        - (αg.w*ρg.w)/ρg_ref * (Ag_w/ag_w)
-        - (αl.w*ρl.w)/ρl_ref * (Al_w/al_w)
+        - (αg.w*ρg.w)/ρg_ref * (Ag.w/ag.w)
+        - (αl.w*ρl.w)/ρl_ref * (Al.w/al.w)
     )
     δP_DL_out = 0.0
     δP_DL = vcat(δP_DL, [δP_DL_out])
@@ -214,7 +209,7 @@ function pressure_correction_equation(
         + ((αl.w*ρl.w*ul.w) - (αl.e*ρl.e*ul.e))/ρl_ref
         + (Δx/Δt)*(
             + ((αg_n.P*ρg_n.P) - (αg.P*ρg.P))/ρg_ref
-            + ((αl_n.P*ρl_n.P) - (αL.P*ρL.P))/ρl_ref
+            + ((αl_n.P*ρl_n.P) - (αl.P*ρl.P))/ρl_ref
         )
     )
     δP_b_in = 0.0
@@ -227,60 +222,138 @@ function pressure_correction_equation(
     # Correção dos valores
     ## Correção das massas específicas
     ### Fase gasosa
-    ρØ_g = @. ρØ_g + (1/cG^2)*δP_x
+    ρØ_G = @. ρØ_g + (1/cG^2)*δP_x
     ### Fase líquida
-    ρØ_l = @. ρØ_l + (1/cL^2)*δP_x
+    ρØ_G = @. ρØ_l + (1/cL^2)*δP_x
 
     ## Correção das velocidades
     ### Fase gasosa
-    uØ_G[2:N] = @. uØ_G[2:N] + (A.G/a.G)*(δP_[1:N-1] - δP_[2:N]) #<--------
-    uØ_G[N+1] = uØ_G[N]
+    uØ_G[2:N] = @. uØ_g[2:N] + (A_g/a_g)*(δP_x[1:N-1] - δP_x[2:N])
+    uØ_G[N+1] = uØ_g[N]
     ### Fase líquida
-    uØ_L[2:N] = @. uØ_L[2:N] + (A.G/a.G)*(δP_[1:N-1] - δP_[2:N]) #<----------
-    uØ_L[N+1] = uØ_L[N]
+    uØ_L[2:N] = @. uØ_l[2:N] + (A_l/a_l)*(δP_x[1:N-1] - δP_x[2:N])
+    uØ_L[N+1] = uØ_l[N]
 
     ## Correção da pressão
-    PØ_ = @. PØ_ + δP_
+    PØ_ = @. PØ_ + δP_x
+    
+    return ρØ_G, uØ_G, ρØ_L, uØ_L, PØ_
+end
 
-    return δP_DL, δP_D, δP_DU, δP_B
+function momentum_coefficients_for_pressure_equation(
+    αØ_g::Vector{Float64},
+    ρØ_g::Vector{Float64},
+    uØ_g::Vector{Float64},
+    αØ_l::Vector{Float64},
+    ρØ_l::Vector{Float64},
+    uØ_l::Vector{Float64}
+)
+
+    ωg = face_omega(uØ_g, N)
+    αg = face_maingrid(αØ_g, ωg, N)
+    ρg = face_maingrid(ρØ_g, ωg, N)
+    ug = face_subgrid(uØ_g, N)
+    ωl = face_omega(uØ_l, N)
+    αl = face_maingrid(αØ_l, ωl, N)
+    ρl = face_maingrid(ρØ_l, ωl, N)
+    ul = face_subgrid(uØ_l, N)
+
+    A_g = @. αg.e/Δx        # Face Subgrid, 2:N-1
+    A_l = @. αl.e/Δx        # Face Subgrid, 2:N-1
+    a_g = @. (αg.e*ρg.e)/Δt + (ωg.E/2 + ωg.P/2)*(αg.e*ρg.e*ug.e)/Δx # Face Subgrid, 2:N-1
+    a_l = @. (αl.e*ρl.e)/Δt + (ωg.E/2 + ωl.P/2)*(αl.e*ρl.e*ul.e)/Δx # Face Subgrid, 2:N-1
+    
+    Ag = @views (
+        w = A_g[2:N-1],     # Center Subgrid, 3:N
+        e = A_g[1:N-2],     # Center Subgrid, 2:N-1
+    )
+    Al = @views (
+        w = A_l[2:N-1],     # Center Subgrid, 3:N
+        e = A_l[1:N-2],     # Center Subgrid, 2:N-1
+    )
+    ag = @views (
+        w = a_g[2:N-1],     # Center Subgrid, 3:N
+        e = a_g[1:N-2],     # Center Subgrid, 2:N-1
+    )
+    al = @views (
+        w = a_l[2:N-1],     # Center Subgrid, 3:N
+        e = a_l[1:N-2],     # Center Subgrid, 2:N-1
+    )
+
+    return A_g, A_l, a_g, a_l, Ag, Al, ag, al
+end
+
+function void_fraction_equation(
+    αØ_g::Vector{Float64},
+    ρØ_g::Vector{Float64},
+    uØ_g::Vector{Float64},
+    αØ_l::Vector{Float64},
+    ρØ_l::Vector{Float64},
+    uØ_l::Vector{Float64},
+    α_g::Vector{Float64},  # valores em n
+    ρ_g::Vector{Float64},  # valores em n
+    α_l::Vector{Float64},  # valores em n
+    ρ_l::Vector{Float64}   # valores em n
+)
+
+    ωg = center_omega(uØ_g, N)
+    ρg = center_maingrid(ρØ_g, ωg, N)
+    ug = center_subgrid(uØ_g, N)
+    ωl = center_omega(uØ_l, N)
+    ρl = center_maingrid(ρØ_l, ωl, N)
+    ul = center_subgrid(uØ_l, N)
+
+    αg_n = center_maingrid(α_g, ωg, N)   # valores em n
+    ρg_n = center_maingrid(ρ_g, ωg, N)   # valores em n
+    αl_n = center_maingrid(α_l, ωl, N)   # valores em n
+    ρl_n = center_maingrid(ρ_l, ωl, N)   # valores em n
+
+    αØ_G = void_fraction_linear_system(ωg, ρg, ug, αg_n, ρg_n, αØ_g[1])
+    αØ_L = void_fraction_linear_system(ωl, ρl, ul, αl_n, ρl_n, αØ_l[1])
+
+    return αØ_G, αØ_L
 end
 
 function void_fraction_linear_system(
-    ωk::omegacenter,
-    αk_in::Float64,
-    ρk::maincenter,
-    uk::subcenter,
-    αk_n::maincenter,
-    ρk_n::maincenter
+    ωk::centeromega,
+    ρk::centermaingrid,
+    uk::centersubgrid,
+    αk_n::centermaingrid,
+    ρk_n::centermaingrid,
+    αk_in::Float64
     )
 
-    # Diagonal principal
-    α_D = @. (
+    # Matriz A
+    ## Diagonal principal
+    αk_D = @. (
         + ρk.P/Δt
         - (1/2 + ωk.e/2)*(ρk.e*uk.e)/Δx
         + (1/2 - ωk.w/2)*(ρk.w*uk.w)/Δx
     )
-    α_D_in = 1.0
-    α_D_out = 1.0
-    α_D = vcat([α_D_in], α_D, [α_D_out])
+    αk_D_in = 1.0
+    αk_D_out = 1.0
+    αk_D = vcat([αk_D_in], αk_D, [αk_D_out])
+    ## Diagonal superior
+    αk_DU = @. - (1/2 + ωk.e/2)*(ρk.e*uk.e)/Δx
+    αk_DU_in = 0.0
+    αk_DU = append!([αk_DU_in], αk_DU)
+    ## Diagonal inferior
+    αk_DL = @. (1/2 + ωk.w/2)*(ρk.w*uk.w)/Δx
+    αk_DL_out = -1.0
+    αk_DL = append!(αk_DL, [αk_DL_out])
+    ## Construção da matriz A
+    αk_A = Tridiagonal(αk_DL, αk_D, αk_DU)
 
-    # Diagonal superior
-    α_DU = @. - (1/2 + ωk.e/2)*(ρk.e*uk.e)/Δx
-    α_DU_in = 0.0
-    α_DU = append!([α_DU_in], α_DU)
+    # Vetor b
+    αk_b = @. (αk_n.P*ρk_n.P)/Δt
+    αk_b_in = αk_in
+    αk_b_out = 0.0
+    αk_b = vcat([αk_b_in], αk_b, [αk_b_out])
 
-    # Diagonal inferior
-    α_DL = @. (1/2 + ωk.w/2)*(ρk.w*uk.w)/Δx
-    α_DL_out = -1.0
-    α_DL = append!(α_DL, [α_DL_out])
+    # Solução do sistema linear
+    αk_x = αk_A \ αk_b
 
-    # Vetor B
-    α_B = @. (αk_n.P*ρk_n.P)/Δt
-    α_B_in = αk.BC
-    α_B_out = 0.0
-    α_B = append!([α_B_in], α_B, [α_B_out])
-
-    return α_DL, α_D, α_DU, α_B
+    return αk_x
 end
 
 cont = 0
@@ -289,74 +362,23 @@ while (cont < 1) || (e_uL < Tol_u && e_uG < Tol_u && e_αL < Tol_α && e_αG < T
     global α_G, α_L, ρ_G, ρ_L, u_G, u_L, P_
     global αØ_G, αØ_L, ρØ_G, ρØ_L, uØ_G, uØ_L, PØ_
     global cont, e_uL, e_uG, e_αL, e_αG, e_P
-    global ρG_i, ρL_i, cG, cL
-    local ωG, αØG, ρØG, uØG, ωL, αØL, ρØL, uØL, PØ
+    global cG, cL
 
-    # Equação do momento ----------------------------------------------------------------------------------------------------------------------------
+    # Equação do momento
     uØ_G, uØ_L = momentum_conservation_equation(αØ_G, ρØ_G, uØ_G, 
                                                 αØ_L, ρØ_L, uØ_L, 
                                                 PØ_)
-    
-    #= Equação de correção de pressão ----------------------------------------------------------------------------------------------------------------
-    
-    ## Atualização dos Tuples de posição
-    ### Fase gasosa
-    ωG = omega_center(uØ_G, N)
-    αØG = maingrid_center(αØ_G, ωG, N)
-    ρØG = maingrid_center(ρØ_G, ωG, N)
-    uØG = subgrid_center(uØ_G, N)
-    PØ = maingrid_center(PØ_, ωG, N)
-    αØG_n = maingrid_center(α_G, ωG, N)   # valores em n
-    ρØG_n = maingrid_center(ρ_G, ωG, N)   # valores em n
-    ### Fase líquida
-    ωL = omega_center(uØ_L, N)
-    αØL = maingrid_center(αØ_L, ωL, N)
-    ρØL = maingrid_center(ρØ_L, ωL, N)
-    uØL = subgrid_center(uØ_L, N)
-    PØ = maingrid_center(PØ_, ωL, N)
-    αØL_n = maingrid_center(α_L, ωL, N)   # valores em n
-    ρØL_n = maingrid_center(ρ_L, ωL, N)   # valores em n
 
-    ## Sistema linear das equacoes de momento
-    δP_DL, δP_D, δP_DU, δP_B = pressure_correction_linear_system(ωG, αØG, ρØG, uØG, αØG_n, ρØG_n, ωL, αØL, ρØL, uØL, αØL_n, ρØL_n)
-    δP_A = Tridiagonal(δP_DL, δP_D, δP_DU)
-    ### Solução do sistema linear
-    δP_ = δP_A \ δP_B
+    # Equação de correção de pressão
+    ρØ_G, uØ_G, ρØ_L, uØ_L, PØ_ = pressure_correction_equation(αØ_G, ρØ_G, uØ_G,
+                                                                αØ_L, ρØ_L, uØ_L,
+                                                                PØ_, α_G, ρ_G, α_L, ρ_L)
 
-
-
-
-    # Equação de conservação ------------------------------------------------------------------------------------------------------------------------
-    
-    ## Atualização dos Tuples de posição
-    ### Fase gasosa
-    ωG = omega_center(uØ_G, N)
-    αØG = maingrid_center(αØ_G, ωG, N)
-    ρØG = maingrid_center(ρØ_G, ωG, N)
-    uØG = subgrid_center(uØ_G, N)
-    PØ = maingrid_center(PØ_, ωG, N)
-    αØG_n = maingrid_center(α_G, ωG, N)   # valores em n
-    ρØG_n = maingrid_center(ρ_G, ωG, N)   # valores em n
-    ### Fase líquida
-    ωL = omega_center(uØ_L, N)
-    αØL = maingrid_center(αØ_L, ωL, N)
-    ρØL = maingrid_center(ρØ_L, ωL, N)
-    uØL = subgrid_center(uØ_L, N)
-    PØ = maingrid_center(PØ_, ωL, N)
-    αØL_n = maingrid_center(α_L, ωL, N)   # valores em n
-    ρØL_n = maingrid_center(ρ_L, ωL, N)   # valores em n
-    
-    ## Sistema linear das equacoes de continuidade
-    ### Fase gasosa
-    αG_DL, αG_D, αG_DU, αG_B = void_fraction_linear_system(ωG, αG_in, ρØG, uØG, αØG_n, ρØG_n)
-    αG_A = Tridiagonal(αG_DL, αG_D, αG_DU)
-    ### Fase líquida
-    αL_DL, αL_D, αL_DU, αL_B = void_fraction_linear_system(ωL, αL_in, ρØL, uØL, αØL_n, ρØL_n)
-    αL_A = Tridiagonal(αL_DL, αL_D, αL_DU)
-    ### Solução do sistema linear
-    αØ_G[:] = αG_A \ αG_B
-    αØ_L[:] = αL_A \ αL_B
-    =#
+    # Equação de conservação
+    αØ_G, αØ_L = void_fraction_equation(αØ_G, ρØ_G, uØ_G, 
+                                        αØ_L, ρØ_L, uØ_L, 
+                                        α_G, ρ_G, 
+                                        α_L, ρ_L)
 
     # Atualização dos supostos ----------------------------------------------------------------------------------------------------------------------
 #=
