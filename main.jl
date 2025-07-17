@@ -1,11 +1,11 @@
+using Printf, Plots, CSV, DataFrames
+
 include("./initialization.jl")
 include("./equation_solvers.jl")
-using Printf, Plots, CSV, DataFrames
 
 
 cont = 0
 while (e_uL < Tol_u && e_uG < Tol_u && e_αL < Tol_α && e_αG < Tol_α && e_P < Tol_P)  ||  (cont < 1)
-
     global α_G, α_L, ρ_G, ρ_L, u_G, u_L, P_
     global αØ_G, αØ_L, ρØ_G, ρØ_L, uØ_G, uØ_L, PØ_
     global cG, cL, e_uL, e_uG, e_αL, e_αG, e_P, cont
@@ -20,18 +20,16 @@ while (e_uL < Tol_u && e_uG < Tol_u && e_αL < Tol_α && e_αG < Tol_α && e_P <
     αØ_G, αØ_L = void_fraction_equation_solver(αØ_G, ρØ_G, uØ_G, αØ_L, ρØ_L, uØ_L, α_G, ρ_G, α_L, ρ_L)
 
     # Atualização dos supostos ----------------------------------------------------------------------------------------------------------------------
-#=
     e_uL = norm(u_L - uØ_L) / norm(uØ_L)
     e_uG = norm(u_G - uØ_G) / norm(uØ_G)
     e_αL = norm(α_L - αØ_L) / norm(αØ_L)
     e_αG = norm(α_G - αØ_G) / norm(αØ_G)
     e_P = norm(P_ - PØ_) / norm(PØ_)
-=#
+
     cont = cont + 1
 
-    #display(e_P)
     #display(cont)
 
 end
 
-"ok"
+display("ok")

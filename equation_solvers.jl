@@ -1,5 +1,6 @@
+using LinearAlgebra, Plots
+
 include("./position_tuples.jl")
-using LinearAlgebra
 
 
 # Equações de momento
@@ -11,7 +12,7 @@ function momentum_conservation_equation_solver(
     ρØ_l::Vector{Float64},
     uØ_l::Vector{Float64},
     PØ_::Vector{Float64}
-)
+    )
 
     uØ_g_in = uØ_g[1]
     uØ_l_in = uØ_l[1]
@@ -33,6 +34,9 @@ function momentum_conservation_equation_solver(
     uØ_G = momentum_linear_system(ωg, αg, ρg, ug, P, CATHARE, uØ_g_in)
     uØ_L = momentum_linear_system(ωl, αl, ρl, ul, P, CATHARE, uØ_l_in)
     
+    #dfu = DataFrame(UG=uØ_G[1:N+1], UL=uØ_L[1:N+1])
+    #CSV.write("exporteusimu.csv", dfu, delim=",")
+
     return uØ_G, uØ_L
 end
 
@@ -55,11 +59,11 @@ function momentum_linear_system(
     uk_D_out = 1.0
     uk_D = vcat([uk_D_in], uk_D, [uk_D_out])
     ## Diagonal superior
-    uk_DU = @. (1/2 - ωk.E/2)*(αk.e*ρk.e*uk.e)/Δx
+    uk_DU = @. +(1/2 - ωk.E/2)*(αk.e*ρk.e*uk.e)/Δx
     uk_DU_in = 0.0
     uk_DU = vcat([uk_DU_in], uk_DU)
     ## Diagonal inferior
-    uk_DL = @. - (1/2 + ωk.P/2)*(αk.e*ρk.e*uk.e)/Δx
+    uk_DL = @. -(1/2 + ωk.P/2)*(αk.e*ρk.e*uk.e)/Δx
     uk_DL_out = -1.0
     uk_DL = vcat(uk_DL, [uk_DL_out])
     ## Construção da matriz A
@@ -160,6 +164,10 @@ function pressure_correction_equation_solver(
     δP_b_out = 0.0
     δP_b = vcat([δP_b_in], δP_b, [δP_b_out])
 
+
+    #dfp = DataFrame(DL=δP_DL[1:N-1], D=δP_D[1:N-1], DU=δP_DU[1:N-1], B=δP_b[1:N-1])
+    #CSV.write("exporteusimp.csv", dfp, delim=",")
+
     # Solução do sistema linear
     δP_x = δP_A \ δP_b
 
@@ -185,7 +193,7 @@ function momentum_coefficients_for_pressure_equation(
     αØ_l::Vector{Float64},
     ρØ_l::Vector{Float64},
     uØ_l::Vector{Float64}
-)
+    )
 
     ωg = face_omega(uØ_g, N)
     αg = face_maingrid(αØ_g, ωg, N)
@@ -234,7 +242,7 @@ function void_fraction_equation_solver(
     ρ_g::Vector{Float64},  # valores em n
     α_l::Vector{Float64},  # valores em n
     ρ_l::Vector{Float64}   # valores em n
-)
+    )
 
     ωg = center_omega(uØ_g, N)
     ρg = center_maingrid(ρØ_g, ωg, N)
