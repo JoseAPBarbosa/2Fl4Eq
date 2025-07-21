@@ -12,22 +12,23 @@ while (e_uL < Tol_u && e_uG < Tol_u && e_αL < Tol_α && e_αG < Tol_α && e_P <
 
     # Equação do momento
     uø_G, uø_L = momentum_conservation_equation_solver( αø_G, ρø_G, uø_G, αø_L, ρø_L, uø_L, 
-                                                        α_G, ρ_G, u_G, α_L, ρ_L, u_L, Pø_ )
+                                                        α_G, ρ_G, u_G, α_L, ρ_L, u_L, Pø_   )
 
     # Equação de correção de pressão
     ρø_G, uø_G, ρø_L, uø_L, Pø_ = pressure_correction_equation_solver(  αø_G, ρø_G, uø_G, αø_L, ρø_L, uø_L, 
-                                                                        α_G, ρ_G, α_L, ρ_L, Pø_)
+                                                                        α_G, ρ_G, α_L, ρ_L, Pø_             )
     
-    #= Equação de conservação
-    αØ_G, αØ_L = void_fraction_equation_solver(αØ_G, ρØ_G, uØ_G, αØ_L, ρØ_L, uØ_L, α_G, ρ_G, α_L, ρ_L)
-
+    # Equação de conservação
+    αø_G, αø_L = void_fraction_equation_solver( ρø_G, uø_G, ρø_L, uø_L, 
+                                                α_G, ρ_G, α_L, ρ_L      )
+    #display(αø_G)
     # Atualização dos supostos ----------------------------------------------------------------------------------------------------------------------
-    e_uL = norm(u_L - uØ_L) / norm(uØ_L)
-    e_uG = norm(u_G - uØ_G) / norm(uØ_G)
-    e_αL = norm(α_L - αØ_L) / norm(αØ_L)
-    e_αG = norm(α_G - αØ_G) / norm(αØ_G)
-    e_P = norm(P_ - PØ_) / norm(PØ_)
-=#
+    e_uL = norm(u_L - uø_L) / norm(uø_L)
+    e_uG = norm(u_G - uø_G) / norm(uø_G)
+    e_αL = norm(α_L - αø_L) / norm(αø_L)
+    e_αG = norm(α_G - αø_G) / norm(αø_G)
+    e_P = norm(P_ - Pø_) / norm(Pø_)
+
     cont = cont + 1
 
     #display(cont)
