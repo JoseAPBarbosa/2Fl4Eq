@@ -5,32 +5,46 @@ include("./position_tuples.jl")
 
 # Equações de momento
 function momentum_conservation_equation_solver(
-    αØ_g::Vector{Float64},
-    ρØ_g::Vector{Float64},
-    uØ_g::Vector{Float64},
-    αØ_l::Vector{Float64},
-    ρØ_l::Vector{Float64},
-    uØ_l::Vector{Float64},
-    PØ_::Vector{Float64}
+    αø_g::Vector{Float64},
+    ρø_g::Vector{Float64},
+    uø_g::Vector{Float64},
+    αø_l::Vector{Float64},
+    ρø_l::Vector{Float64},
+    uø_l::Vector{Float64},
+    α_g::Vector{Float64},
+    ρ_g::Vector{Float64},
+    u_g::Vector{Float64},
+    α_l::Vector{Float64},
+    ρ_l::Vector{Float64},
+    u_l::Vector{Float64},
+    Pø_::Vector{Float64}
     )
 
-    uØ_g_in = uØ_g[1]
-    uØ_l_in = uØ_l[1]
+    uø_g_in = uø_g[1]
+    uø_l_in = uø_l[1]  
 
-    αg = face_maingrid(αØ_g, N)
-    ρg = face_maingrid(ρØ_g, N)
-    ug = face_subgrid(uØ_g, N)
-    αl = face_maingrid(αØ_l, N)
-    ρl = face_maingrid(ρØ_l, N)
-    ul = face_subgrid(uØ_l, N)
-    P = face_maingrid(PØ_, N)
+    αg = face_maingrid(αø_g, N)
+    ρg = face_maingrid(ρø_g, N)
+    ug = face_subgrid(uø_g, N)
 
-    display(ul.P)
+    αl = face_maingrid(αø_l, N)
+    ρl = face_maingrid(ρø_l, N)
+    ul = face_subgrid(uø_l, N)
+    
+    α0g = face_maingrid(α_g, N)
+    ρ0g = face_maingrid(ρ_g, N)
+    u0g = face_subgrid(u_g, N)
+    
+    α0l = face_maingrid(α_l, N)
+    ρ0l = face_maingrid(ρ_l, N)
+    u0l = face_subgrid(u_l, N)
+    
+    P = face_maingrid(Pø_, N)
 
     CATHARE = @. γ * (αg.e*αl.e*ρg.e*ρl.e)*(ug.e - ul.e)^2 / (αg.e*ρl.e + αl.e*ρg.e)
 
-    uØ_G = momentum_linear_system(αg, ρg, ug, P, CATHARE, uØ_g_in)
-    uØ_L = momentum_linear_system(αl, ρl, ul, P, CATHARE, uØ_l_in)
+    uØ_G = momentum_linear_system(αg, ρg, ug, α0g, ρ0g, u0g, P, CATHARE, uø_g_in)
+    uØ_L = momentum_linear_system(αl, ρl, ul, α0l, ρ0l, u0l, P, CATHARE, uø_l_in)
     
     return uØ_G, uØ_L
 end
@@ -39,19 +53,22 @@ function momentum_linear_system(
     αk::facemaingrid,
     ρk::facemaingrid,
     uk::facesubgrid,
+    α0k::facemaingrid,
+    ρ0k::facemaingrid,
+    u0k::facesubgrid,
     P::facemaingrid,
     CATHARE::Vector{Float64},
     uk_in::Float64
     )
     
     F_E = @. αk.E*ρk.E*uk.E
-    F_W = @. αk.E*ρk.E*uk.E
-    ΔF = @. F_E - F_W
+    F_P = @. αk.P*ρk.P*uk.P
+    ΔF = @. F_E - F_P
 
-    a0_e = @. (αk.e*ρk.e)/Δt
-    a_E = @. max(-F_E, 0)/Δx
-    a_W = @. max(F_W, 0)/Δx
-    a_e = a0_e + a_E + a_W
+    a0_e = @. (α0k.e*ρ0k.e)*(Δx/Δt)
+    a_ee = @. -min(F_E, 0)
+    a_w = @. max(F_P, 0)
+    a_e = a0_e + a_ee + a_w + ΔF
 
     # Matriz A
     ## Diagonal principal
@@ -60,11 +77,11 @@ function momentum_linear_system(
     uk_D_out = 1.0
     uk_D = vcat([uk_D_in], uk_D, [uk_D_out])
     ## Diagonal superior
-    uk_DU = a_E
+    uk_DU = -a_ee
     uk_DU_in = 0.0
     uk_DU = vcat([uk_DU_in], uk_DU)
     ## Diagonal inferior
-    uk_DL = -a_W
+    uk_DL = -a_w
     uk_DL_out = -1.0
     uk_DL = vcat(uk_DL, [uk_DL_out])
     ## Construção da matriz A
@@ -72,10 +89,10 @@ function momentum_linear_system(
     
     # Vetor b
     uk_b = @. (
-        + (αk.e*ρk.e*uk.e)/Δt
-        + αk.e*ρk.e*g*sin(θ)
-        + αk.e*(P.P - P.E)/Δx
-        + CATHARE*(αk.E - αk.P)/Δx
+        + a0_e*u0k.e
+        + αk.e*ρk.e*g*sin(θ)*Δx
+        + αk.e*(P.P - P.E)
+        + CATHARE*(αk.E - αk.P)
     )
     uk_b_in = uk_in
     uk_b_out = 0.0

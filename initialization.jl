@@ -45,13 +45,13 @@ u_G = uG_in * ones(N + 1)
 u_L = uL_in * ones(N + 1)
 P_ = P_out * ones(N)
 ## Supostos
-αØ_G = αG_i * ones(N)
-αØ_L = αL_i * ones(N)
-ρØ_G = ρG_i * ones(N)
-ρØ_L = ρL_i * ones(N)
-uØ_G = uG_in * ones(N + 1)
-uØ_L = uL_in * ones(N + 1)
-PØ_ = P_out * ones(N)
+αø_G = αG_i * ones(N)
+αø_L = αL_i * ones(N)
+ρø_G = ρG_i * ones(N)
+ρø_L = ρL_i * ones(N)
+uø_G = uG_in * ones(N + 1)
+uø_L = uL_in * ones(N + 1)
+Pø_ = P_out * ones(N)
 ## Erros
 e_uL = 1
 e_uG = 1
