@@ -69,10 +69,9 @@ function center_omega(
     return centeromega((W=W, P=P, E=E, w=w, e=e))
 end
 
-const centermaingrid = NamedTuple{(:P, :w, :e),Tuple{SubArray{Float64,1},SubArray{Float64,1},SubArray{Float64,1}}}
+const centermaingrid = NamedTuple{(:P, :w, :e),Tuple{SubArray{Float64,1},Vector{Float64},Vector{Float64}}}
 function center_maingrid(
     ϕk::Vector{Float64},
-    ωk::centeromega,
     N::Int64
     )
     # Função de construção do Tuple dos vetores das posições
@@ -80,9 +79,8 @@ function center_maingrid(
     # continuidade e de correção de pressão
 
     P = @view ϕk[2:N-1]
-    ϕk_interp = upwind_interpolation(ϕk, ωk.P, N - 1)
-    w = @view ϕk_interp[2:N-1]
-    e = @view ϕk_interp[3:N]
+    w = @. (ϕk[1:N-2] + ϕk[2:N-1])/2
+    e = @. (ϕk[2:N-1] + ϕk[3:N])/2
 
     return centermaingrid((P=P, w=w, e=e))
 end

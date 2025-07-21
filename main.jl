@@ -11,16 +11,14 @@ while (e_uL < Tol_u && e_uG < Tol_u && e_αL < Tol_α && e_αG < Tol_α && e_P <
     global cG, cL, e_uL, e_uG, e_αL, e_αG, e_P, cont
 
     # Equação do momento
-    uø_G, uø_L = momentum_conservation_equation_solver( αø_G, ρø_G, uø_G, 
-                                                        αø_L, ρø_L, uø_L, 
-                                                        α_G, ρ_G, u_G, 
-                                                        α_L, ρ_L, u_L, 
-                                                        Pø_ )
+    uø_G, uø_L = momentum_conservation_equation_solver( αø_G, ρø_G, uø_G, αø_L, ρø_L, uø_L, 
+                                                        α_G, ρ_G, u_G, α_L, ρ_L, u_L, Pø_ )
 
-    #= Equação de correção de pressão
-    ρØ_G, uØ_G, ρØ_L, uØ_L, PØ_ = pressure_correction_equation_solver(αØ_G, ρØ_G, uØ_G, αØ_L, ρØ_L, uØ_L, PØ_, α_G, ρ_G, α_L, ρ_L)
-
-    # Equação de conservação
+    # Equação de correção de pressão
+    ρø_G, uø_G, ρø_L, uø_L, Pø_ = pressure_correction_equation_solver(  αø_G, ρø_G, uø_G, αø_L, ρø_L, uø_L, 
+                                                                        α_G, ρ_G, α_L, ρ_L, Pø_)
+    
+    #= Equação de conservação
     αØ_G, αØ_L = void_fraction_equation_solver(αØ_G, ρØ_G, uØ_G, αØ_L, ρØ_L, uØ_L, α_G, ρ_G, α_L, ρ_L)
 
     # Atualização dos supostos ----------------------------------------------------------------------------------------------------------------------

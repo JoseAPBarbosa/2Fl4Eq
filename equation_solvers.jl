@@ -106,37 +106,37 @@ end
 
 # Equação de correção de pressão
 function pressure_correction_equation_solver(
-    αØ_g::Vector{Float64},
-    ρØ_g::Vector{Float64},
-    uØ_g::Vector{Float64},
-    αØ_l::Vector{Float64},
-    ρØ_l::Vector{Float64},
-    uØ_l::Vector{Float64},
-    PØ_::Vector{Float64},
-    α_g::Vector{Float64},  # valores em n
-    ρ_g::Vector{Float64},  # valores em n
-    α_l::Vector{Float64},  # valores em n
-    ρ_l::Vector{Float64}   # valores em n
+    αø_g::Vector{Float64},
+    ρø_g::Vector{Float64},
+    uø_g::Vector{Float64},
+    αø_l::Vector{Float64},
+    ρø_l::Vector{Float64},
+    uø_l::Vector{Float64},
+    α_g::Vector{Float64},
+    ρ_g::Vector{Float64},
+    α_l::Vector{Float64},
+    ρ_l::Vector{Float64},
+    Pø_::Vector{Float64}
     )
     
-    ρg_ref = ρØ_g[1]
-    ρl_ref = ρØ_l[1]
+    ρg_ref = ρø_g[1]
+    ρl_ref = ρø_l[1]
 
-    A_g, A_l, a_g, a_l, Ag, Al, ag, al = momentum_coefficients_for_pressure_equation(αØ_g, ρØ_g, uØ_g, αØ_l, ρØ_l, uØ_l)
+    A_ge, A_le, a_ge, a_le, Ag, Al, ag, al = momentum_coefficients_for_pressure_equation(   αø_g, ρø_g, uø_g, 
+                                                                                            αø_l, ρø_l, uø_l,
+                                                                                            α_g, ρ_g, α_l, ρ_l  )
     
-    ωg = center_omega(uØ_g, N)
-    αg = center_maingrid(αØ_g, ωg, N)
-    ρg = center_maingrid(ρØ_g, ωg, N)
-    ug = center_subgrid(uØ_g, N)
-    ωl = center_omega(uØ_l, N)
-    αl = center_maingrid(αØ_l, ωl, N)
-    ρl = center_maingrid(ρØ_l, ωl, N)
-    ul = center_subgrid(uØ_l, N)
+    αg = center_maingrid(αø_g, N)
+    ρg = center_maingrid(ρø_g, N)
+    ug = center_subgrid(uø_g, N)
+    αl = center_maingrid(αø_l, N)
+    ρl = center_maingrid(ρø_l, N)
+    ul = center_subgrid(uø_l, N)
 
-    αg_n = center_maingrid(α_g, ωg, N)
-    ρg_n = center_maingrid(ρ_g, ωg, N)
-    αl_n = center_maingrid(α_l, ωl, N)
-    ρl_n = center_maingrid(ρ_l, ωl, N)
+    α0g = center_maingrid(α_g, N)
+    ρ0g = center_maingrid(ρ_g, N)
+    α0l = center_maingrid(α_l, N)
+    ρ0l = center_maingrid(ρ_l, N)
 
     # Matriz A
     ## Diagonal principal
@@ -173,8 +173,8 @@ function pressure_correction_equation_solver(
         + ((αg.w*ρg.w*ug.w) - (αg.e*ρg.e*ug.e))/ρg_ref
         + ((αl.w*ρl.w*ul.w) - (αl.e*ρl.e*ul.e))/ρl_ref
         + (Δx/Δt)*(
-            + ((αg_n.P*ρg_n.P) - (αg.P*ρg.P))/ρg_ref
-            + ((αl_n.P*ρl_n.P) - (αl.P*ρl.P))/ρl_ref
+            + ((α0g.P*ρ0g.P) - (αg.P*ρg.P))/ρg_ref
+            + ((α0l.P*ρ0l.P) - (αl.P*ρl.P))/ρl_ref
         )
     )
     δP_b_in = 0.0
@@ -190,60 +190,88 @@ function pressure_correction_equation_solver(
 
     # Correção dos valores
     ## Correção das massas específicas
-    ρØ_G = @. ρØ_g + (1/cG^2)*δP_x
-    ρØ_G = @. ρØ_l + (1/cL^2)*δP_x
+    ρø_G = @. ρø_g + (1/cG^2)*δP_x
+    ρø_G = @. ρø_l + (1/cL^2)*δP_x
     ## Correção das velocidades
-    uØ_G[2:N] = @. uØ_g[2:N] + (A_g/a_g)*(δP_x[1:N-1] - δP_x[2:N])
-    uØ_G[N+1] = uØ_g[N]
-    uØ_L[2:N] = @. uØ_l[2:N] + (A_l/a_l)*(δP_x[1:N-1] - δP_x[2:N])
-    uØ_L[N+1] = uØ_l[N]
+    uø_G[2:N] = @. uø_g[2:N] + (A_ge/a_ge)*(δP_x[1:N-1] - δP_x[2:N])
+    uø_G[N+1] = uø_g[N]
+    uø_L[2:N] = @. uø_l[2:N] + (A_le/a_le)*(δP_x[1:N-1] - δP_x[2:N])
+    uø_L[N+1] = uø_l[N]
     ## Correção da pressão
-    PØ_ = @. PØ_ + δP_x
+    Pø_ = @. Pø_ + δP_x
     
-    return ρØ_G, uØ_G, ρØ_L, uØ_L, PØ_
+    return ρø_G, uø_G, ρø_L, uø_L, Pø_
 end
 
 function momentum_coefficients_for_pressure_equation(
-    αØ_g::Vector{Float64},
-    ρØ_g::Vector{Float64},
-    uØ_g::Vector{Float64},
-    αØ_l::Vector{Float64},
-    ρØ_l::Vector{Float64},
-    uØ_l::Vector{Float64}
+    αø_g::Vector{Float64},
+    ρø_g::Vector{Float64},
+    uø_g::Vector{Float64},
+    αø_l::Vector{Float64},
+    ρø_l::Vector{Float64},
+    uø_l::Vector{Float64},
+    α0_g::Vector{Float64},
+    ρ0_g::Vector{Float64},
+    α0_l::Vector{Float64},
+    ρ0_l::Vector{Float64}
     )
 
-    ωg = face_omega(uØ_g, N)
-    αg = face_maingrid(αØ_g, ωg, N)
-    ρg = face_maingrid(ρØ_g, ωg, N)
-    ug = face_subgrid(uØ_g, N)
-    ωl = face_omega(uØ_l, N)
-    αl = face_maingrid(αØ_l, ωl, N)
-    ρl = face_maingrid(ρØ_l, ωl, N)
-    ul = face_subgrid(uØ_l, N)
+    αg = face_maingrid(αø_g, N)
+    ρg = face_maingrid(ρø_g, N)
+    ug = face_subgrid(uø_g, N)
 
-    A_g = @. αg.e/Δx        # Face Subgrid, 2:N-1
-    A_l = @. αl.e/Δx        # Face Subgrid, 2:N-1
-    a_g = @. (αg.e*ρg.e)/Δt + (ωg.E/2 + ωg.P/2)*(αg.e*ρg.e*ug.e)/Δx # Face Subgrid, 2:N-1
-    a_l = @. (αl.e*ρl.e)/Δt + (ωg.E/2 + ωl.P/2)*(αl.e*ρl.e*ul.e)/Δx # Face Subgrid, 2:N-1
+    α0g = face_maingrid(α0_g, N)
+    ρ0g = face_maingrid(ρ0_g, N)
+
+    A_ge = @. αg.e              # Face Subgrid, 2:N
+
+    F_gE = @. αg.E*ρg.E*ug.E
+    F_gP = @. αg.P*ρg.P*ug.P
+    ΔFg = @. F_gE - F_gP
+
+    a0_ge = @. (α0g.e*ρ0g.e)*(Δx/Δt)
+    a_gee = @. -min(F_gE, 0)
+    a_gw = @. max(F_gP, 0)
+    a_ge = a0_ge + a_gee + a_gw + ΔFg   # Face Subgrid, 2:N
+
+
+    αl = face_maingrid(αø_l, N)
+    ρl = face_maingrid(ρø_l, N)
+    ul = face_subgrid(uø_l, N)
+
+    α0l = face_maingrid(α0_l, N)
+    ρ0l = face_maingrid(ρ0_l, N)
+
+    A_le = @. αl.e              # Face Subgrid, 2:N
+
+    F_lE = @. αl.E*ρl.E*ul.E
+    F_lP = @. αl.P*ρl.P*ul.P
+    ΔFl = @. F_lE - F_lP
+
+    a0_le = @. (α0l.e*ρ0l.e)*(Δx/Δt)
+    a_lee = @. -min(F_lE, 0)
+    a_lw = @. max(F_lP, 0)
+    a_le = a0_le + a_lee + a_lw + ΔFl   # Face Subgrid, 2:N
     
+
     Ag = @views (
-        w = A_g[2:N-1],     # Center Subgrid, 3:N
-        e = A_g[1:N-2],     # Center Subgrid, 2:N-1
+        w = A_ge[2:N-1],     # Center Subgrid, 3:N
+        e = A_ge[1:N-2],     # Center Subgrid, 2:N-1
     )
     Al = @views (
-        w = A_l[2:N-1],     # Center Subgrid, 3:N
-        e = A_l[1:N-2],     # Center Subgrid, 2:N-1
+        w = A_le[2:N-1],     # Center Subgrid, 3:N
+        e = A_le[1:N-2],     # Center Subgrid, 2:N-1
     )
     ag = @views (
-        w = a_g[2:N-1],     # Center Subgrid, 3:N
-        e = a_g[1:N-2],     # Center Subgrid, 2:N-1
+        w = a_ge[2:N-1],     # Center Subgrid, 3:N
+        e = a_ge[1:N-2],     # Center Subgrid, 2:N-1
     )
     al = @views (
-        w = a_l[2:N-1],     # Center Subgrid, 3:N
-        e = a_l[1:N-2],     # Center Subgrid, 2:N-1
+        w = a_le[2:N-1],     # Center Subgrid, 3:N
+        e = a_le[1:N-2],     # Center Subgrid, 2:N-1
     )
 
-    return A_g, A_l, a_g, a_l, Ag, Al, ag, al
+    return A_ge, A_le, a_ge, a_le, Ag, Al, ag, al
 end
 
 # Equações de fração volumétrica
