@@ -13,7 +13,7 @@ while (e_uL < Tol_u && e_uG < Tol_u && e_αL < Tol_α && e_αG < Tol_α && e_P <
     # Equação do momento
     uØ_G, uØ_L = momentum_conservation_equation_solver(αØ_G, ρØ_G, uØ_G, αØ_L, ρØ_L, uØ_L, PØ_)
 
-    # Equação de correção de pressão
+    #= Equação de correção de pressão
     ρØ_G, uØ_G, ρØ_L, uØ_L, PØ_ = pressure_correction_equation_solver(αØ_G, ρØ_G, uØ_G, αØ_L, ρØ_L, uØ_L, PØ_, α_G, ρ_G, α_L, ρ_L)
 
     # Equação de conservação
@@ -25,7 +25,7 @@ while (e_uL < Tol_u && e_uG < Tol_u && e_αL < Tol_α && e_αG < Tol_α && e_P <
     e_αL = norm(α_L - αØ_L) / norm(αØ_L)
     e_αG = norm(α_G - αØ_G) / norm(αØ_G)
     e_P = norm(P_ - PØ_) / norm(PØ_)
-
+=#=#
     cont = cont + 1
 
     #display(cont)

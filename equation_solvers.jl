@@ -17,31 +17,25 @@ function momentum_conservation_equation_solver(
     uØ_g_in = uØ_g[1]
     uØ_l_in = uØ_l[1]
 
-    ωg = face_omega(uØ_g, N)
-    αg = face_maingrid(αØ_g, ωg, N)
-    ρg = face_maingrid(ρØ_g, ωg, N)
+    αg = face_maingrid(αØ_g, N)
+    ρg = face_maingrid(ρØ_g, N)
     ug = face_subgrid(uØ_g, N)
-    ωl = face_omega(uØ_l, N)
-    αl = face_maingrid(αØ_l, ωl, N)
-    ρl = face_maingrid(ρØ_l, ωl, N)
+    αl = face_maingrid(αØ_l, N)
+    ρl = face_maingrid(ρØ_l, N)
     ul = face_subgrid(uØ_l, N)
-    P = face_maingrid(PØ_, ωl, N)
+    P = face_maingrid(PØ_, N)
 
-    CATHARE = @. γ * (
-        (αg.e*αl.e*ρg.e*ρl.e)*(ug.e - ul.e)^2 / (αg.e*ρl.e + αl.e*ρg.e)
-    )
+    display(ul.P)
 
-    uØ_G = momentum_linear_system(ωg, αg, ρg, ug, P, CATHARE, uØ_g_in)
-    uØ_L = momentum_linear_system(ωl, αl, ρl, ul, P, CATHARE, uØ_l_in)
+    CATHARE = @. γ * (αg.e*αl.e*ρg.e*ρl.e)*(ug.e - ul.e)^2 / (αg.e*ρl.e + αl.e*ρg.e)
+
+    uØ_G = momentum_linear_system(αg, ρg, ug, P, CATHARE, uØ_g_in)
+    uØ_L = momentum_linear_system(αl, ρl, ul, P, CATHARE, uØ_l_in)
     
-    #dfu = DataFrame(UG=uØ_G[1:N+1], UL=uØ_L[1:N+1])
-    #CSV.write("exporteusimu.csv", dfu, delim=",")
-
     return uØ_G, uØ_L
 end
 
 function momentum_linear_system(
-    ωk::faceomega,
     αk::facemaingrid,
     ρk::facemaingrid,
     uk::facesubgrid,
@@ -50,20 +44,27 @@ function momentum_linear_system(
     uk_in::Float64
     )
     
+    F_E = @. αk.E*ρk.E*uk.E
+    F_W = @. αk.E*ρk.E*uk.E
+    ΔF = @. F_E - F_W
+
+    a0_e = @. (αk.e*ρk.e)/Δt
+    a_E = @. max(-F_E, 0)/Δx
+    a_W = @. max(F_W, 0)/Δx
+    a_e = a0_e + a_E + a_W
+
     # Matriz A
     ## Diagonal principal
-    uk_D = @. (
-        (αk.e*ρk.e)/Δt + (ωk.E/2 + ωk.P/2)*(αk.e*ρk.e*uk.e)/Δx
-        )
+    uk_D = a_e
     uk_D_in = 1.0
     uk_D_out = 1.0
     uk_D = vcat([uk_D_in], uk_D, [uk_D_out])
     ## Diagonal superior
-    uk_DU = @. +(1/2 - ωk.E/2)*(αk.e*ρk.e*uk.e)/Δx
+    uk_DU = a_E
     uk_DU_in = 0.0
     uk_DU = vcat([uk_DU_in], uk_DU)
     ## Diagonal inferior
-    uk_DL = @. -(1/2 + ωk.P/2)*(αk.e*ρk.e*uk.e)/Δx
+    uk_DL = -a_W
     uk_DL_out = -1.0
     uk_DL = vcat(uk_DL, [uk_DL_out])
     ## Construção da matriz A
@@ -85,7 +86,6 @@ function momentum_linear_system(
 
     return uk_x
 end
-
 
 # Equação de correção de pressão
 function pressure_correction_equation_solver(
@@ -228,7 +228,6 @@ function momentum_coefficients_for_pressure_equation(
 
     return A_g, A_l, a_g, a_l, Ag, Al, ag, al
 end
-
 
 # Equações de fração volumétrica
 function void_fraction_equation_solver(
