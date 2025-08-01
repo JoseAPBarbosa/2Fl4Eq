@@ -5,61 +5,62 @@ include("./position_tuples.jl")
 
 # Equações de momento
 function momentum_conservation_equation_solver(
-    αø_g::Vector{Float64},
-    αø_l::Vector{Float64},
-    α_g::Vector{Float64},
-    α_l::Vector{Float64},
-    uø_g::Vector{Float64},
-    uø_l::Vector{Float64},
-    u_g::Vector{Float64},
-    u_l::Vector{Float64},
-    Pø_::Vector{Float64},
-    ρ_g::Float64,
-    ρ_l::Float64
+    α0_G::Vector{Float64},
+    α0_L::Vector{Float64},
+    u0_G::Vector{Float64},
+    u0_L::Vector{Float64},
+    αg_G::Vector{Float64},
+    αg_L::Vector{Float64},
+    ug_G::Vector{Float64},
+    ug_L::Vector{Float64},
+    Pg_::Vector{Float64},
+    ρ_G::Float64,
+    ρ_L::Float64,
+    N::Int64
     )
 
-    u_g_in = u_g[1]
-    u_l_in = u_l[1]  
+    u_G_in = ug_G[1]
+    u_L_in = ug_L[1]  
 
-    αg = face_maingrid(αø_g, N)
-    αl = face_maingrid(αø_l, N)
-    α0g = face_maingrid(α_g, N)
-    α0l = face_maingrid(α_l, N)
+    α0G = face_maingrid(α0_G, N)
+    α0L = face_maingrid(α0_L, N)
+    u0G = face_subgrid(u0_G, N)
+    u0L = face_subgrid(u0_L, N)
 
-    ul = face_subgrid(uø_l, N)
-    ug = face_subgrid(uø_g, N)
-    u0g = face_subgrid(u_g, N)
-    u0l = face_subgrid(u_l, N)
+    αgG = face_maingrid(αg_G, N)
+    αgL = face_maingrid(αg_L, N)
+    ugG = face_subgrid(ug_G, N)
+    ugL = face_subgrid(ug_L, N)
     
-    P = face_maingrid(Pø_, N)
+    Pg = face_maingrid(Pg_, N)
 
-    CATHARE = @. γ * (αg.e*αl.e*ρ_g*ρ_l)*(ug.e - ul.e)^2 / (αg.e*ρ_l + αl.e*ρ_g)
+    CATHARE = @. γ * (αgG.e*αgL.e*ρ_G*ρ_L)*(ugG.e - ugL.e)^2 / (αgG.e*ρ_L + αgL.e*ρ_G)
 
-    uø_G = momentum_linear_system(αg, α0g, ug, u0g, P, CATHARE, ρ_g, u_g_in)
-    uø_L = momentum_linear_system(αl, α0l, ul, u0l, P, CATHARE, ρ_l, u_l_in)
+    uø_G = momentum_linear_system(α0G, u0G, αgG, ugG, Pg, CATHARE, ρ_G, u_G_in)
+    uø_L = momentum_linear_system(α0L, u0L, αgL, ugL, Pg, CATHARE, ρ_L, u_L_in)
     
     return uø_G, uø_L
 end
 
 function momentum_linear_system(
-    αk::facemaingrid,
     α0k::facemaingrid,
-    uk::facesubgrid,
     u0k::facesubgrid,
-    P::facemaingrid,
+    αgk::facemaingrid,
+    ugk::facesubgrid,
+    Pg::facemaingrid,
     CATHARE::Vector{Float64},
     ρ_k::Float64,
     u_k_in::Float64
     )
     
     # Fluxos numéricos
-    F_E = @. ρ_k*(αk.E*uk.E)
-    F_P = @. ρ_k*(αk.P*uk.P)
+    F_E = @. ρ_k*(αgk.E*ugk.E)
+    F_P = @. ρ_k*(αgk.P*ugk.P)
     ΔF = F_E - F_P
 
     # Coeficientes pós-agrupamento
     a0_e = @. ρ_k*(α0k.e)*(Δx/Δt)
-    a_ee = @. -min(F_E, 0)
+    a_ee = @. max(0, -F_E)
     a_w = @. max(F_P, 0)
     a_e = a0_e + a_ee + a_w + ΔF
 
@@ -83,9 +84,9 @@ function momentum_linear_system(
     # Vetor b
     uk_b = @. (
         + a0_e*u0k.e
-        + ρ_k*(αk.e*g*sin(θ))*Δx
-        + αk.e*(P.P - P.E)
-        + CATHARE*(αk.E - αk.P)
+        + ρ_k*(αgk.e*g*sin(θ))*Δx
+        + αgk.e*(Pg.P - Pg.E)
+        + CATHARE*(αgk.E - αgk.P)
     )
     uk_b_in = u_k_in
     uk_b_out = 0.0
@@ -99,18 +100,19 @@ end
 
 # Equação de correção de pressão
 function pressure_correction_equation_solver(
-    αø_g::Vector{Float64},
-    αø_l::Vector{Float64},
-    α_g::Vector{Float64},
-    α_l::Vector{Float64},
-    uø_g::Vector{Float64},
-    uø_l::Vector{Float64},
-    Pø_::Vector{Float64},
-    ρ_g::Float64,
-    ρ_l::Float64
+    αg_G::Vector{Float64},
+    αg_L::Vector{Float64},
+    α0_G::Vector{Float64},
+    α0_L::Vector{Float64},
+    ug_G::Vector{Float64},
+    ug_L::Vector{Float64},
+    Pg_::Vector{Float64},
+    ρ_G::Float64,
+    ρ_L::Float64,
+    N::Int64
     )
-    ρg_ref = ρ_g
-    ρl_ref = ρ_l
+    ρ_G_ref = ρ_g
+    ρ_L_ref = ρ_l
     
     A_ge, A_le, a_ge, a_le, Ag, Al, ag, al = momentum_coefficients_for_pressure_equation(   αø_g, αø_l, α_g, α_l,
                                                                                             uø_g, uø_l,
@@ -165,9 +167,6 @@ function pressure_correction_equation_solver(
     δP_b_out = 0.0
     δP_b = vcat([δP_b_in], δP_b, [δP_b_out])
 
-    #dfp = DataFrame(DL=δP_DL[1:N-1], D=δP_D[1:N-1], DU=δP_DU[1:N-1], B=δP_b[1:N-1])
-    #CSV.write("exporteusimp.csv", dfp, delim=",")
-
     # Solução do sistema linear
     δP_x = δP_A \ δP_b
 
@@ -216,13 +215,13 @@ function momentum_coefficients_for_pressure_equation(
     ## Fase gasosa
     A_ge = @. αg.e                          # Face Subgrid, 2:N
     a0_ge = @. ρ_g*(α0g.e)*(Δx/Δt)
-    a_gee = @. -min(F_gE, 0)
+    a_gee = @. max(0, -F_gE)
     a_gw = @. max(F_gP, 0)
     a_ge = @. a0_ge + a_gee + a_gw + ΔFg    # Face Subgrid, 2:N
     ## Fase líquida
     A_le = @. αl.e                          # Face Subgrid, 2:N
     a0_le = @. ρ_l*(α0l.e)*(Δx/Δt)
-    a_lee = @. -min(F_lE, 0)
+    a_lee = @. max(0, -F_lE)
     a_lw = @. max(F_lP, 0)
     a_le = a0_le + a_lee + a_lw + ΔFl       # Face Subgrid, 2:N
     
@@ -286,7 +285,7 @@ function void_fraction_linear_system(
 
     # Coeficientes pós-agrupamento
     a0_P = ρ_k*(Δx/Δt)
-    a_E = @. -min(F_e, 0)
+    a_E = @. max(0, -F_e)
     a_W = @. max(F_w, 0)
     a_P = @. a0_P - a_W - a_E - ΔF
 

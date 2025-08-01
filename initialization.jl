@@ -33,19 +33,25 @@ g = 9.81                    # Aceleração gravitacional
 Nt = Int(tempo ÷ Δt)        # Número de passos temporais
 γ = 1.2                     # Garantia de hiperbolicidade
 
-# Variáveis
-## Condições Iniciais
+# Domínio das variáveis
+## Variáveis em t=n
+α0_G = α_G_i * ones(N)
+α0_L = α_L_i * ones(N)
+u0_G = u_G_in * ones(N + 1)
+u0_L = u_L_in * ones(N + 1)
+P0_ = P_out * ones(N)
+## Variáveis em t=κ
+αg_G = α_G_i * ones(N)
+αg_L = α_L_i * ones(N)
+ug_G = u_G_in * ones(N + 1)
+ug_L = u_L_in * ones(N + 1)
+Pg_ = P_out * ones(N)
+## Variáveis em t=κ+1
 α_G = α_G_i * ones(N)
 α_L = α_L_i * ones(N)
 u_G = u_G_in * ones(N + 1)
 u_L = u_L_in * ones(N + 1)
 P_ = P_out * ones(N)
-## Supostos
-αø_G = α_G_i * ones(N)
-αø_L = α_L_i * ones(N)
-uø_G = u_G_in * ones(N + 1)
-uø_L = u_L_in * ones(N + 1)
-Pø_ = P_out * ones(N)
 ## Erros
 e_uL = 1
 e_uG = 1
