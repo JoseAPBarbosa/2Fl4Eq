@@ -6,6 +6,7 @@ include("./initialization.jl")
 include("./equation_solvers.jl")
 
 
+cont = 0
 while e_uL > Tol_u || e_uG > Tol_u || e_αL > Tol_α || e_αG > Tol_α || e_P > Tol_P
     global α0_G, α0_L, u0_G, u0_L, P0_
     global αx_G, αx_L, ux_G, ux_L, Px_
@@ -40,5 +41,5 @@ while e_uL > Tol_u || e_uG > Tol_u || e_αL > Tol_α || e_αG > Tol_α || e_P > 
     ux_G[:] = u_G[:]
     ux_L[:] = u_L[:]
     Px_[:] = P_[:]
-end
 
+end

@@ -262,8 +262,11 @@ function void_fraction_equation_solver(
     uG = center_subgrid(u_G, N)
     uL = center_subgrid(u_L, N)
 
-    α_G = void_fraction_linear_system(α0G, uG, ρ_G, αG_in)
-    α_L = void_fraction_linear_system(α0L, uL, ρ_L, αL_in)
+    αx_G = void_fraction_linear_system(α0G, uG, ρ_G, αG_in)
+    αx_L = void_fraction_linear_system(α0L, uL, ρ_L, αL_in)
+
+    α_L[2:N] = @. αx_L[2:N] / (αx_L[2:N] + αx_G[2:N])
+    α_G[2:N] = @. 1.0 - α_L[2:N]
 
     return α_G, α_L
 end
