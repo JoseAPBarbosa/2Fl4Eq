@@ -1,5 +1,5 @@
-using JSON
-
+using LinearAlgebra, JSON
+using Printf, Plots, CSV, DataFrames
 
 # Entrada de dados
 dados = JSON.parsefile("Entrada.json")
@@ -41,11 +41,11 @@ u0_G = u_G_in * ones(N + 1)
 u0_L = u_L_in * ones(N + 1)
 P0_ = P_out * ones(N)
 ## Variáveis em t=κ
-αg_G = α_G_i * ones(N)
-αg_L = α_L_i * ones(N)
-ug_G = u_G_in * ones(N + 1)
-ug_L = u_L_in * ones(N + 1)
-Pg_ = P_out * ones(N)
+αx_G = α_G_i * ones(N)
+αx_L = α_L_i * ones(N)
+ux_G = u_G_in * ones(N + 1)
+ux_L = u_L_in * ones(N + 1)
+Px_ = P_out * ones(N)
 ## Variáveis em t=κ+1
 α_G = α_G_i * ones(N)
 α_L = α_L_i * ones(N)

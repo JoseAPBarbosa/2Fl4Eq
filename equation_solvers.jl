@@ -1,5 +1,3 @@
-using LinearAlgebra, Plots
-
 include("./position_tuples.jl")
 
 
@@ -9,60 +7,61 @@ function momentum_conservation_equation_solver(
     α0_L::Vector{Float64},
     u0_G::Vector{Float64},
     u0_L::Vector{Float64},
-    αg_G::Vector{Float64},
-    αg_L::Vector{Float64},
-    ug_G::Vector{Float64},
-    ug_L::Vector{Float64},
-    Pg_::Vector{Float64},
+    αx_G::Vector{Float64},
+    αx_L::Vector{Float64},
+    ux_G::Vector{Float64},
+    ux_L::Vector{Float64},
+    Px_::Vector{Float64},
     ρ_G::Float64,
     ρ_L::Float64,
     N::Int64
     )
 
-    u_G_in = ug_G[1]
-    u_L_in = ug_L[1]  
+    uG_in = ux_G[1]
+    uL_in = ux_L[1]  
 
     α0G = face_maingrid(α0_G, N)
     α0L = face_maingrid(α0_L, N)
     u0G = face_subgrid(u0_G, N)
     u0L = face_subgrid(u0_L, N)
 
-    αgG = face_maingrid(αg_G, N)
-    αgL = face_maingrid(αg_L, N)
-    ugG = face_subgrid(ug_G, N)
-    ugL = face_subgrid(ug_L, N)
+    αxG = face_maingrid(αx_G, N)
+    αxL = face_maingrid(αx_L, N)
+    uxG = face_subgrid(ux_G, N)
+    uxL = face_subgrid(ux_L, N)
     
-    Pg = face_maingrid(Pg_, N)
+    Px = face_maingrid(Px_, N)
 
-    CATHARE = @. γ * (αgG.e*αgL.e*ρ_G*ρ_L)*(ugG.e - ugL.e)^2 / (αgG.e*ρ_L + αgL.e*ρ_G)
+    CATHARE = @. γ * (αxG.e*αxL.e*ρ_G*ρ_L)*(uxG.e - uxL.e)^2 / (αxG.e*ρ_L + αxL.e*ρ_G)
 
-    uø_G = momentum_linear_system(α0G, u0G, αgG, ugG, Pg, CATHARE, ρ_G, u_G_in)
-    uø_L = momentum_linear_system(α0L, u0L, αgL, ugL, Pg, CATHARE, ρ_L, u_L_in)
+    ux_G = momentum_linear_system(α0G, u0G, αxG, uxG, Px, CATHARE, ρ_G, uG_in)
+    ux_L = momentum_linear_system(α0L, u0L, αxL, uxL, Px, CATHARE, ρ_L, uL_in)
     
-    return uø_G, uø_L
+    return ux_G, ux_L
 end
 
 function momentum_linear_system(
     α0k::facemaingrid,
     u0k::facesubgrid,
-    αgk::facemaingrid,
-    ugk::facesubgrid,
-    Pg::facemaingrid,
+    αxk::facemaingrid,
+    uxk::facesubgrid,
+    Px::facemaingrid,
     CATHARE::Vector{Float64},
     ρ_k::Float64,
-    u_k_in::Float64
+    uk_in::Float64
     )
     
     # Fluxos numéricos
-    F_E = @. ρ_k*(αgk.E*ugk.E)
-    F_P = @. ρ_k*(αgk.P*ugk.P)
+    F_E = @. ρ_k*αxk.E*uxk.E
+    F_P = @. ρ_k*αxk.P*uxk.P
     ΔF = F_E - F_P
-
+    
     # Coeficientes pós-agrupamento
-    a0_e = @. ρ_k*(α0k.e)*(Δx/Δt)
-    a_ee = @. max(0, -F_E)
+    A_e = α0k.e
+    a0_e = @. ρ_k*α0k.e*(Δx/Δt)
     a_w = @. max(F_P, 0)
-    a_e = a0_e + a_ee + a_w + ΔF
+    a_ee = @. max(0, -F_E)
+    a_e = a0_e + a_w + a_ee + ΔF
 
     # Matriz A
     ## Diagonal principal
@@ -83,12 +82,12 @@ function momentum_linear_system(
     
     # Vetor b
     uk_b = @. (
+        + A_e*(Px.P - Px.E)
         + a0_e*u0k.e
-        + ρ_k*(αgk.e*g*sin(θ))*Δx
-        + αgk.e*(Pg.P - Pg.E)
-        + CATHARE*(αgk.E - αgk.P)
+        + ρ_k*αxk.e*g*sin(θ)*Δx
+        + CATHARE*(αxk.E - αxk.P)
     )
-    uk_b_in = u_k_in
+    uk_b_in = uk_in
     uk_b_out = 0.0
     uk_b = vcat([uk_b_in], uk_b, [uk_b_out])
     
@@ -100,54 +99,50 @@ end
 
 # Equação de correção de pressão
 function pressure_correction_equation_solver(
-    αg_G::Vector{Float64},
-    αg_L::Vector{Float64},
     α0_G::Vector{Float64},
     α0_L::Vector{Float64},
-    ug_G::Vector{Float64},
-    ug_L::Vector{Float64},
-    Pg_::Vector{Float64},
+    αx_G::Vector{Float64},
+    αx_L::Vector{Float64},
+    ux_G::Vector{Float64},
+    ux_L::Vector{Float64},
+    Px_::Vector{Float64},
     ρ_G::Float64,
     ρ_L::Float64,
     N::Int64
     )
-    ρ_G_ref = ρ_g
-    ρ_L_ref = ρ_l
     
-    A_ge, A_le, a_ge, a_le, Ag, Al, ag, al = momentum_coefficients_for_pressure_equation(   αø_g, αø_l, α_g, α_l,
-                                                                                            uø_g, uø_l,
-                                                                                            ρ_g, ρ_l    )
+    A_Ge, A_Le, a_Ge, a_Le, AG, AL, aG, aL = momentum_coefficients_for_pressure_equation(α0_G, α0_L, αx_G, αx_L, ux_G, ux_L, ρ_G, ρ_L, N)
+
+    α0G = center_maingrid(α0_G, N)
+    α0L = center_maingrid(α0_L, N)
     
-    αg = center_maingrid(αø_g, N)
-    αl = center_maingrid(αø_l, N)
-    α0g = center_maingrid(α_g, N)
-    α0l = center_maingrid(α_l, N)
-    
-    ug = center_subgrid(uø_g, N)
-    ul = center_subgrid(uø_l, N)
+    αxG = center_maingrid(αx_G, N)
+    αxL = center_maingrid(αx_L, N)
+    uxG = center_subgrid(ux_G, N)
+    uxL = center_subgrid(ux_L, N)
 
     # Matriz A
     ## Diagonal principal
     δP_D = @. (
-        + ρ_g*(αg.e)/ρg_ref * (Ag.e/ag.e)
-        + ρ_g*(αg.w)/ρg_ref * (Ag.w/ag.w)
-        + ρ_l*(αl.e)/ρl_ref * (Al.e/al.e)
-        + ρ_l*(αl.w)/ρl_ref * (Al.w/al.w)
+        + αxG.e * (AG.e/aG.e)
+        + αxG.w * (AG.w/aG.w)
+        + αxL.e * (AL.e/aL.e)
+        + αxL.w * (AL.w/aL.w)
     )
     δP_D_in = 1.0
     δP_D_out = 1.0
     δP_D = vcat([δP_D_in], δP_D, [δP_D_out])
     ## Diagonal superior
     δP_DU = @. (
-        - ρ_g*(αg.e)/ρg_ref * (Ag.e/ag.e)
-        - ρ_l*(αl.e)/ρl_ref * (Al.e/al.e)
+        - αxG.e * (AG.e/aG.e)
+        - αxL.e * (AL.e/aL.e)
     )  
     δP_DU_in = -1.0
     δP_DU = vcat([δP_DU_in], δP_DU)
     ## Diagonal inferior
     δP_DL = @. (
-        - ρ_g*(αg.w)/ρg_ref * (Ag.w/ag.w)
-        - ρ_l*(αl.w)/ρl_ref * (Al.w/al.w)
+        - αxG.w * (AG.w/aG.w)
+        - αxL.w * (AL.w/aL.w)
     )
     δP_DL_out = 0.0
     δP_DL = vcat(δP_DL, [δP_DL_out])
@@ -156,11 +151,11 @@ function pressure_correction_equation_solver(
 
     # Vetor b
     δP_b = @. (
-        + ρ_g*((αg.w*ug.w) - (αg.e*ug.e))/ρg_ref
-        + ρ_l*((αl.w*ul.w) - (αl.e*ul.e))/ρl_ref
+        + αxG.w*uxG.w - αxG.e*uxG.e
+        + αxL.w*uxL.w - αxL.e*uxL.e
         + (Δx/Δt)*(
-            + ρ_g*(α0g.P - αg.P)/ρg_ref
-            + ρ_l*(α0l.P - αl.P)/ρl_ref
+            + α0G.P - αxG.P
+            + α0L.P - αxL.P
         )
     )
     δP_b_in = 0.0
@@ -172,103 +167,105 @@ function pressure_correction_equation_solver(
 
     # Correção dos valores
     ## Correção das velocidades
-    uø_G[2:N] = @. uø_g[2:N] + (A_ge/a_ge)*(δP_x[1:N-1] - δP_x[2:N])
-    uø_G[N+1] = uø_g[N]
-    uø_L[2:N] = @. uø_l[2:N] + (A_le/a_le)*(δP_x[1:N-1] - δP_x[2:N])
-    uø_L[N+1] = uø_l[N]
+    u_G[2:N] = @. ux_G[2:N] + (A_Ge/a_Ge)*(δP_x[1:N-1] - δP_x[2:N])
+    u_G[N+1] = ux_G[N]
+    u_L[2:N] = @. ux_L[2:N] + (A_Le/a_Le)*(δP_x[1:N-1] - δP_x[2:N])
+    u_L[N+1] = ux_L[N]
     ## Correção da pressão
-    Pø_ = @. Pø_ + δP_x
+    P_ = @. Px_ + δP_x
     
-    return uø_G, uø_L, Pø_
+    return u_G, u_L, P_
 end
 
 function momentum_coefficients_for_pressure_equation(
-    αø_g::Vector{Float64},
-    αø_l::Vector{Float64},
-    α0_g::Vector{Float64},
-    α0_l::Vector{Float64},
-    uø_g::Vector{Float64},
-    uø_l::Vector{Float64},
-    ρ_g::Float64,
-    ρ_l::Float64
+    α0_G::Vector{Float64},
+    α0_L::Vector{Float64},
+    αx_G::Vector{Float64},
+    αx_L::Vector{Float64},
+    ux_G::Vector{Float64},
+    ux_L::Vector{Float64},
+    ρ_G::Float64,
+    ρ_L::Float64,
+    N::Int64
     )
 
-    αg = face_maingrid(αø_g, N)
-    αl = face_maingrid(αø_l, N)
-    α0g = face_maingrid(α0_g, N)
-    α0l = face_maingrid(α0_l, N)
-
-    ug = face_subgrid(uø_g, N)
-    ul = face_subgrid(uø_l, N)
+    α0G = face_maingrid(α0_G, N)
+    α0L = face_maingrid(α0_L, N)
+    
+    αxG = face_maingrid(αx_G, N)
+    αxL = face_maingrid(αx_L, N)
+    uxG = face_subgrid(ux_G, N)
+    uxL = face_subgrid(ux_L, N)
 
     # Fluxos numéricos
     ## Fase gasosa
-    F_gE = @. ρ_g*(αg.E*ug.E)
-    F_gP = @. ρ_g*(αg.P*ug.P)
-    ΔFg = @. F_gE - F_gP
+    F_GE = @. αxG.E*uxG.E
+    F_GP = @. αxG.P*uxG.P
+    ΔFG = @. F_GE - F_GP
     ## Fase líquida
-    F_lE = @. ρ_l*(αl.E*ul.E)
-    F_lP = @. ρ_l*(αl.P*ul.P)
-    ΔFl = @. F_lE - F_lP
+    F_LE = @. αxL.E*uxL.E
+    F_LP = @. αxL.P*uxL.P
+    ΔFL = @. F_LE - F_LP
 
     # Coeficientes pós-agrupamento
     ## Fase gasosa
-    A_ge = @. αg.e                          # Face Subgrid, 2:N
-    a0_ge = @. ρ_g*(α0g.e)*(Δx/Δt)
-    a_gee = @. max(0, -F_gE)
-    a_gw = @. max(F_gP, 0)
-    a_ge = @. a0_ge + a_gee + a_gw + ΔFg    # Face Subgrid, 2:N
+    A_Ge = @. αxG.e/ρ_G                     # Face Subgrid, 2:N
+    a0_Ge = @. α0G.e*(Δx/Δt)
+    a_Gw = @. max(F_GP, 0)
+    a_Gee = @. max(0, -F_GE)
+    a_Ge = @. a0_Ge + a_Gw + a_Gee + ΔFG    # Face Subgrid, 2:N
     ## Fase líquida
-    A_le = @. αl.e                          # Face Subgrid, 2:N
-    a0_le = @. ρ_l*(α0l.e)*(Δx/Δt)
-    a_lee = @. max(0, -F_lE)
-    a_lw = @. max(F_lP, 0)
-    a_le = a0_le + a_lee + a_lw + ΔFl       # Face Subgrid, 2:N
+    A_Le = @. αxL.e/ρ_L                     # Face Subgrid, 2:N
+    a0_Le = @. α0L.e*(Δx/Δt)
+    a_Lw = @. max(F_LP, 0)
+    a_Lee = @. max(0, -F_LE)
+    a_Le = a0_Le + a_Lw + a_Lee + ΔFL       # Face Subgrid, 2:N
     
     # Tuples de posição
-    Ag = @views (
-        w = A_ge[2:N-1],     # Center Subgrid, 3:N
-        e = A_ge[1:N-2],     # Center Subgrid, 2:N-1
+    AG = @views (
+        w = A_Ge[2:N-1],     # Center Subgrid, 3:N
+        e = A_Ge[1:N-2],     # Center Subgrid, 2:N-1
     )
-    Al = @views (
-        w = A_le[2:N-1],     # Center Subgrid, 3:N
-        e = A_le[1:N-2],     # Center Subgrid, 2:N-1
+    AL = @views (
+        w = A_Le[2:N-1],     # Center Subgrid, 3:N
+        e = A_Le[1:N-2],     # Center Subgrid, 2:N-1
     )
-    ag = @views (
-        w = a_ge[2:N-1],     # Center Subgrid, 3:N
-        e = a_ge[1:N-2],     # Center Subgrid, 2:N-1
+    aG = @views (
+        w = a_Ge[2:N-1],     # Center Subgrid, 3:N
+        e = a_Ge[1:N-2],     # Center Subgrid, 2:N-1
     )
-    al = @views (
-        w = a_le[2:N-1],     # Center Subgrid, 3:N
-        e = a_le[1:N-2],     # Center Subgrid, 2:N-1
+    aL = @views (
+        w = a_Le[2:N-1],     # Center Subgrid, 3:N
+        e = a_Le[1:N-2],     # Center Subgrid, 2:N-1
     )
 
-    return A_ge, A_le, a_ge, a_le, Ag, Al, ag, al
+    return A_Ge, A_Le, a_Ge, a_Le, AG, AL, aG, aL
 end
 
 # Equações de fração volumétrica
 function void_fraction_equation_solver(
-    α_g::Vector{Float64},
-    α_l::Vector{Float64},
-    uø_g::Vector{Float64},
-    uø_l::Vector{Float64},
-    ρ_g::Float64,
-    ρ_l::Float64
+    α0_G::Vector{Float64},
+    α0_L::Vector{Float64},
+    u_G::Vector{Float64},
+    u_L::Vector{Float64},
+    ρ_G::Float64,
+    ρ_L::Float64,
+    N::Int64
     )
 
-    α_g_in = α_g[1]
-    α_l_in = α_l[1] 
+    αG_in = α0_G[1]
+    αL_in = α0_L[1] 
 
-    α0g = center_maingrid(α_g, N)
-    α0l = center_maingrid(α_l, N)
+    α0G = center_maingrid(α0_G, N)
+    α0L = center_maingrid(α0_L, N)
 
-    ug = center_subgrid(uø_g, N)
-    ul = center_subgrid(uø_l, N)
+    uG = center_subgrid(u_G, N)
+    uL = center_subgrid(u_L, N)
 
-    αø_G = void_fraction_linear_system(α0g, ug, ρ_g, α_g_in)
-    αø_L = void_fraction_linear_system(α0l, ul, ρ_l, α_l_in)
+    α_G = void_fraction_linear_system(α0G, uG, ρ_G, αG_in)
+    α_L = void_fraction_linear_system(α0L, uL, ρ_L, αL_in)
 
-    return αø_G, αø_L
+    return α_G, α_L
 end
 
 function void_fraction_linear_system(
@@ -285,8 +282,8 @@ function void_fraction_linear_system(
 
     # Coeficientes pós-agrupamento
     a0_P = ρ_k*(Δx/Δt)
-    a_E = @. max(0, -F_e)
     a_W = @. max(F_w, 0)
+    a_E = @. max(0, -F_e)
     a_P = @. a0_P - a_W - a_E - ΔF
 
     # Matriz A
