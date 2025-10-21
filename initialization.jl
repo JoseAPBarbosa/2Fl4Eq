@@ -29,29 +29,29 @@ Area = (pi * D^2) / 4       # Área da seção do duto
 g = 9.81                    # Aceleração gravitacional
 ## Parâmetros de malha
 Δx = Comp / N               # Passo espacial
-Δt = (CFL * Δx) / u_L_in     # Passo temporal
+Δt = (CFL * Δx) / u_L_in    # Passo temporal
 Nt = Int(tempo ÷ Δt)        # Número de passos temporais
 γ = 1.2                     # Garantia de hiperbolicidade
 
 # Domínio das variáveis
 ## Variáveis em t=n
-α0_G = α_G_i * ones(N)
-α0_L = α_L_i * ones(N)
-u0_G = u_G_in * ones(N + 1)
-u0_L = u_L_in * ones(N + 1)
-P0_ = P_out * ones(N)
+α0_G = fill(α_G_i, N)
+α0_L = fill(α_L_i, N)
+u0_G = fill(u_G_in, N+1)
+u0_L = fill(u_L_in, N+1)
+P0_ = fill(P_out, N)
 ## Variáveis em t=κ
-αx_G = α_G_i * ones(N)
-αx_L = α_L_i * ones(N)
-ux_G = u_G_in * ones(N + 1)
-ux_L = u_L_in * ones(N + 1)
-Px_ = P_out * ones(N)
+αx_G = fill(α_G_i, N)
+αx_L = fill(α_L_i, N)
+ux_G = fill(u_G_in, N+1)
+ux_L = fill(u_L_in, N+1)
+Px_ = fill(P_out, N)
 ## Variáveis em t=κ+1
-α_G = α_G_i * ones(N)
-α_L = α_L_i * ones(N)
-u_G = u_G_in * ones(N + 1)
-u_L = u_L_in * ones(N + 1)
-P_ = P_out * ones(N)
+α_G = fill(α_G_i, N)
+α_L = fill(α_L_i, N)
+u_G = fill(u_G_in, N+1)
+u_L = fill(u_L_in, N+1)
+P_ = fill(P_out, N)
 ## Erros
 e_uL = 1
 e_uG = 1

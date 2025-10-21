@@ -13,24 +13,23 @@ function momentum_conservation_equation_solver(
     ux_L::Vector{Float64},
     Px_::Vector{Float64},
     ρ_G::Float64,
-    ρ_L::Float64,
-    N::Int64
+    ρ_L::Float64
     )
 
     uG_in = ux_G[1]
     uL_in = ux_L[1]  
 
-    α0G = face_maingrid(α0_G, N)
-    α0L = face_maingrid(α0_L, N)
-    u0G = face_subgrid(u0_G, N)
-    u0L = face_subgrid(u0_L, N)
+    α0G = alpha_face(α0_G, ux_G)
+    α0L = alpha_face(α0_L, ux_L)
+    u0G = uvel_face(u0_G)
+    u0L = uvel_face(u0_L)
 
-    αxG = face_maingrid(αx_G, N)
-    αxL = face_maingrid(αx_L, N)
-    uxG = face_subgrid(ux_G, N)
-    uxL = face_subgrid(ux_L, N)
+    αxG = alpha_face(αx_G, ux_G)
+    αxL = alpha_face(αx_L, ux_L)
+    uxG = uvel_face(ux_G)
+    uxL = uvel_face(ux_L)
     
-    Px = face_maingrid(Px_, N)
+    Px = press_face(Px_)
 
     CATHARE = @. γ * (αxG.e*αxL.e*ρ_G*ρ_L)*(uxG.e - uxL.e)^2 / (αxG.e*ρ_L + αxL.e*ρ_G)
 
@@ -174,6 +173,9 @@ function pressure_correction_equation_solver(
     ## Correção da pressão
     P_ = @. Px_ + δP_x
     
+    asdf = plot(u_G)
+    display(asdf)
+
     return u_G, u_L, P_
 end
 
