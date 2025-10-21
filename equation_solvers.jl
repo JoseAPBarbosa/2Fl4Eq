@@ -28,10 +28,7 @@ function momentum_conservation_equation_solver(
     αxL = alpha_face(αx_L, ux_L)
     uxG = uvel_face(ux_G)
     uxL = uvel_face(ux_L)
-    
     Px = press_face(Px_)
-
-    CATHARE = @. γ * (αxG.e*αxL.e*ρ_G*ρ_L)*(uxG.e - uxL.e)^2 / (αxG.e*ρ_L + αxL.e*ρ_G)
 
     ux_G = momentum_linear_system(α0G, u0G, αxG, uxG, Px, CATHARE, ρ_G, uG_in)
     ux_L = momentum_linear_system(α0L, u0L, αxL, uxL, Px, CATHARE, ρ_L, uL_in)
@@ -45,7 +42,6 @@ function momentum_linear_system(
     αxk::facemaingrid,
     uxk::facesubgrid,
     Px::facemaingrid,
-    CATHARE::Vector{Float64},
     ρ_k::Float64,
     uk_in::Float64
     )
