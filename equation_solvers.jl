@@ -103,49 +103,50 @@ function pressure_correction_equation_solver(
     ρ_G::Float64,
     ρ_L::Float64
     )
-    
-    d_L, dL
-    A_Ge, a_Ge, AG, aG = momentum_coefficients_for_pressure_equation(α0_G, αx_G, ux_G, ρ_G)
-    A_Le, a_Le, AL, aL = momentum_coefficients_for_pressure_equation(α0_L, αx_L, ux_L, ρ_L)
 
-    α0G = center_maingrid(α0_G, N)
-    α0L = center_maingrid(α0_L, N)
-    
-    αxG = center_maingrid(αx_G, N)
-    αxL = center_maingrid(αx_L, N)
-    uxG = center_subgrid(ux_G, N)
-    uxL = center_subgrid(ux_L, N)
+    d_G = Δt/(ρ_G*Δx)
+    d_L = Δt/(ρ_L*Δx)
+    #A_Ge, a_Ge, AG, aG = momentum_coefficients_for_pressure_equation(α0_G, αx_G, ux_G, ρ_G)
+    #A_Le, a_Le, AL, aL = momentum_coefficients_for_pressure_equation(α0_L, αx_L, ux_L, ρ_L)
+
+    α0G = alpha_center(α0_G, ux_G)
+    α0L = alpha_center(α0_L, ux_L)
+    αxG = alpha_center(αx_G, ux_G)
+    αxL = alpha_center(αx_L, ux_L)
+    uxG = uvel_center(ux_G)
+    uxL = uvel_center(ux_L)
 
     # Matriz A
     ## Diagonal principal
-    δP_D = @. (
-        + αxG.e * (AG.e/aG.e)
-        + αxG.w * (AG.w/aG.w)
-        + αxL.e * (AL.e/aL.e)
-        + αxL.w * (AL.w/aL.w)
+    δP_D = zeros(N)
+    δP_D[2:N-1] = @. (
+        + αxG.e * d_G
+        + αxG.w * d_G
+        + αxL.e * d_L
+        + αxL.w * d_L
     )
-    δP_D_in = 1.0
-    δP_D_out = 1.0
-    δP_D = vcat([δP_D_in], δP_D, [δP_D_out])
+    δP_D[1] = 1.0
+    δP_D[N] = 1.0
     ## Diagonal superior
-    δP_DU = @. (
-        - αxG.e * (AG.e/aG.e)
-        - αxL.e * (AL.e/aL.e)
+    δP_DU = zeros(N-1)
+    δP_DU[2:N-1] = @. (
+        - αxG.e * d_G
+        - αxL.e * d_L
     )  
-    δP_DU_in = -1.0
-    δP_DU = vcat([δP_DU_in], δP_DU)
+    δP_DU[1] = -1.0
     ## Diagonal inferior
-    δP_DL = @. (
-        - αxG.w * (AG.w/aG.w)
-        - αxL.w * (AL.w/aL.w)
+    δP_DL = zeros(N-1)
+    δP_DL[1:N-2] = @. (
+        - αxG.w * d_G
+        - αxL.w * d_L
     )
-    δP_DL_out = 0.0
-    δP_DL = vcat(δP_DL, [δP_DL_out])
+    δP_DL[N-1] = 0.0
     ## Construção da matriz A
     δP_A = Tridiagonal(δP_DL, δP_D, δP_DU)
-
+    
     # Vetor b
-    δP_b = @. (
+    δP_b = zeros(N)
+    δP_b[2:N-1] = @. (
         + αxG.w*uxG.w - αxG.e*uxG.e
         + αxL.w*uxL.w - αxL.e*uxL.e
         + (Δx/Δt)*(
@@ -153,25 +154,21 @@ function pressure_correction_equation_solver(
             + α0L.P - αxL.P
         )
     )
-    δP_b_in = 0.0
-    δP_b_out = 0.0
-    δP_b = vcat([δP_b_in], δP_b, [δP_b_out])
+    δP_b[1] = 0.0
+    δP_b[N] = 0.0
 
     # Solução do sistema linear
     δP_x = δP_A \ δP_b
 
     # Correção dos valores
     ## Correção das velocidades
-    u_G[2:N] = @. ux_G[2:N] + (A_Ge/a_Ge)*(δP_x[1:N-1] - δP_x[2:N])
-    u_G[N+1] = ux_G[N]
-    u_L[2:N] = @. ux_L[2:N] + (A_Le/a_Le)*(δP_x[1:N-1] - δP_x[2:N])
-    u_L[N+1] = ux_L[N]
+    u_G[2:N] = @. ux_G[2:N] + d_G*(δP_x[1:N-1] - δP_x[2:N])
+    u_G[N+1] = u_G[N]
+    u_L[2:N] = @. ux_L[2:N] + d_L*(δP_x[1:N-1] - δP_x[2:N])
+    u_L[N+1] = u_L[N]
     ## Correção da pressão
     P_ = @. Px_ + δP_x
     
-    asdf = plot(u_G)
-    display(asdf)
-
     return u_G, u_L, P_
 end
 
@@ -214,7 +211,7 @@ function momentum_coefficients_for_pressure_equation(
     return A_ke, a_ke, Ak, ak
 end
 =#
-
+#=
 # Equações de fração volumétrica
 function void_fraction_equation_solver(
     α0_G::Vector{Float64},
@@ -290,3 +287,4 @@ function void_fraction_linear_system(
 
     return αk_x
 end
+=#

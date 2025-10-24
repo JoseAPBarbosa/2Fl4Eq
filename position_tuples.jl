@@ -37,11 +37,11 @@ function uvel_face(uk::Vector{Float64})
 end
 
 const pressFace = NamedTuple{(:P, :E),Tuple{SubArray{Float64, 1},SubArray{Float64, 1}}}
-function press_face(P::Vector{Float64})
+function press_face(p::Vector{Float64})
 
-    N = length(P)
-    P = @view P[1:N-1]
-    E = @view P[2:N]
+    N = length(p)
+    P = @view p[1:N-1]
+    E = @view p[2:N]
 
     return pressFace((P=P, E=E))
 end
@@ -57,13 +57,13 @@ function alpha_center(
     )
 
     N = length(αk)
-    W = αk[1:N-2]
-    P = αk[2:N-1]
-    E = αk[3:N]
+    W = @view αk[1:N-2]
+    P = @view αk[2:N-1]
+    E = @view αk[3:N]
     w = @. (1+sign(uk[2:N-1]))/2 * αk[1:N-2] + (1-sign(uk[2:N-1]))/2 * αk[2:N-1]
     e = @. (1+sign(uk[3:N]))/2  * αk[2:N-1]  + (1-sign(uk[3:N]))/2  * αk[3:N]
 
-    return facemaingrid((W=W, P=P, E=E, w=w, e=e))
+    return alphaCenter((W=W, P=P, E=E, w=w, e=e))
 end
 
 const rhoCenter = NamedTuple{(:W, :P, :E, :w, :e),Tuple{SubArray{Float64, 1},SubArray{Float64, 1},SubArray{Float64, 1},Vector{Float64},Vector{Float64}}}
@@ -73,9 +73,9 @@ function rho_center(
     )
 
     N = length(ρk)
-    W = ρk[1:N-2]
-    P = ρk[2:N-1]
-    E = ρk[3:N]
+    W = @view ρk[1:N-2]
+    P = @view ρk[2:N-1]
+    E = @view ρk[3:N]
     w = @. (1+sign(uk[2:N-1]))/2 * ρk[1:N-2] + (1-sign(uk[2:N-1]))/2 * ρk[2:N-1]
     e = @. (1+sign(uk[3:N]))/2  * ρk[2:N-1] + (1-sign(uk[3:N]))/2  * ρk[3:N]
 

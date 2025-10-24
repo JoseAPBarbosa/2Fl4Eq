@@ -1,7 +1,7 @@
 {
   "Comprimento [m]": 12.0,
   "Diâmetro [m]": 1.0,
-  "Inclinação [rad]": 1.5707,
+  "Inclinação [rad]": 1.57,
   "Tempo de simulação [s]": 0.7,
   "Fração de gás na entrada": 0.2,
   "Fração de gás inicial no duto": 0.2,
