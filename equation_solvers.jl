@@ -101,11 +101,12 @@ function pressure_correction_equation_solver(
     ux_L::Vector{Float64},
     Px_::Vector{Float64},
     ρ_G::Float64,
-    ρ_L::Float64,
-    N::Int64
+    ρ_L::Float64
     )
     
-    A_Ge, A_Le, a_Ge, a_Le, AG, AL, aG, aL = momentum_coefficients_for_pressure_equation(α0_G, α0_L, αx_G, αx_L, ux_G, ux_L, ρ_G, ρ_L, N)
+    d_L, dL
+    A_Ge, a_Ge, AG, aG = momentum_coefficients_for_pressure_equation(α0_G, αx_G, ux_G, ρ_G)
+    A_Le, a_Le, AL, aL = momentum_coefficients_for_pressure_equation(α0_L, αx_L, ux_L, ρ_L)
 
     α0G = center_maingrid(α0_G, N)
     α0L = center_maingrid(α0_L, N)
@@ -174,70 +175,45 @@ function pressure_correction_equation_solver(
     return u_G, u_L, P_
 end
 
+#=
 function momentum_coefficients_for_pressure_equation(
-    α0_G::Vector{Float64},
-    α0_L::Vector{Float64},
-    αx_G::Vector{Float64},
-    αx_L::Vector{Float64},
-    ux_G::Vector{Float64},
-    ux_L::Vector{Float64},
-    ρ_G::Float64,
-    ρ_L::Float64,
-    N::Int64
+    α0k::alphaface,
+    αxk::alphaface,
+    uxk::uvelFace,
+    ρ_k::Float64
     )
 
-    α0G = face_maingrid(α0_G, N)
-    α0L = face_maingrid(α0_L, N)
-    
-    αxG = face_maingrid(αx_G, N)
-    αxL = face_maingrid(αx_L, N)
-    uxG = face_subgrid(ux_G, N)
-    uxL = face_subgrid(ux_L, N)
+    α0k = alpha_face(α0k, uxk)
+    αxk = alpha_face(αxk, uxk)
+    uxk = uvel_face(uxk)
 
     # Fluxos numéricos
     ## Fase gasosa
-    F_GE = @. αxG.E*uxG.E
-    F_GP = @. αxG.P*uxG.P
-    ΔFG = @. F_GE - F_GP
-    ## Fase líquida
-    F_LE = @. αxL.E*uxL.E
-    F_LP = @. αxL.P*uxL.P
-    ΔFL = @. F_LE - F_LP
+    F_E = @. αxk.E*uxk.E/Δx
+    F_P = @. αxk.P*uxk.P/Δx
+    ΔF = @. F_E - F_P
 
     # Coeficientes pós-agrupamento
     ## Fase gasosa
-    A_Ge = @. αxG.e/ρ_G                     # Face Subgrid, 2:N
-    a0_Ge = @. α0G.e*(Δx/Δt)
-    a_Gw = @. max(F_GP, 0)
-    a_Gee = @. max(0, -F_GE)
-    a_Ge = @. a0_Ge + a_Gw + a_Gee + ΔFG    # Face Subgrid, 2:N
-    ## Fase líquida
-    A_Le = @. αxL.e/ρ_L                     # Face Subgrid, 2:N
-    a0_Le = @. α0L.e*(Δx/Δt)
-    a_Lw = @. max(F_LP, 0)
-    a_Lee = @. max(0, -F_LE)
-    a_Le = a0_Le + a_Lw + a_Lee + ΔFL       # Face Subgrid, 2:N
-    
+    A_e = @. αxk.e/ρ_k
+    a0_e = @. α0k.e/Δt
+    a_w = @. max(F_P, 0)
+    a_ee = @. max(0, -F_E)
+    a_e = @. a0_e + a_w + a_ee + ΔF
+
     # Tuples de posição
-    AG = @views (
-        w = A_Ge[2:N-1],     # Center Subgrid, 3:N
-        e = A_Ge[1:N-2],     # Center Subgrid, 2:N-1
+    Ak = @views (
+        w = A_e[2:N-1],
+        e = A_e[1:N-2],
     )
-    AL = @views (
-        w = A_Le[2:N-1],     # Center Subgrid, 3:N
-        e = A_Le[1:N-2],     # Center Subgrid, 2:N-1
-    )
-    aG = @views (
-        w = a_Ge[2:N-1],     # Center Subgrid, 3:N
-        e = a_Ge[1:N-2],     # Center Subgrid, 2:N-1
-    )
-    aL = @views (
-        w = a_Le[2:N-1],     # Center Subgrid, 3:N
-        e = a_Le[1:N-2],     # Center Subgrid, 2:N-1
+    ak = @views (
+        w = a_e[2:N-1],
+        e = a_e[1:N-2],
     )
 
-    return A_Ge, A_Le, a_Ge, a_Le, AG, AL, aG, aL
+    return A_ke, a_ke, Ak, ak
 end
+=#
 
 # Equações de fração volumétrica
 function void_fraction_equation_solver(

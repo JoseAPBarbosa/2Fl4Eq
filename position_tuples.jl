@@ -1,3 +1,6 @@
+#==========================#
+# Face tuples
+#==========================#
 const alphaFace = NamedTuple{(:P, :E, :e),Tuple{SubArray{Float64, 1},SubArray{Float64, 1},Vector{Float64}}}
 function alpha_face(αk::Vector{Float64}, uk::Vector{Float64})
 
@@ -34,76 +37,57 @@ function uvel_face(uk::Vector{Float64})
 end
 
 const pressFace = NamedTuple{(:P, :E),Tuple{SubArray{Float64, 1},SubArray{Float64, 1}}}
-function press_face(ρk::Vector{Float64})
+function press_face(P::Vector{Float64})
 
-    N = length(ρk)
-    P = @view ρk[1:N-1]
-    E = @view ρk[2:N]
+    N = length(P)
+    P = @view P[1:N-1]
+    E = @view P[2:N]
 
     return pressFace((P=P, E=E))
 end
 
-const facemaingrid = NamedTuple{(:P, :E, :e),Tuple{Vector{Float64},Vector{Float64},Vector{Float64}}}
-function face_maingrid(
-    ɸk::Vector{Float64},
+#==========================#
+# Center tuples
+#==========================#
+
+const alphaCenter = NamedTuple{(:W, :P, :E, :w, :e),Tuple{SubArray{Float64, 1},SubArray{Float64, 1},SubArray{Float64, 1},Vector{Float64},Vector{Float64}}}
+function alpha_center(
+    αk::Vector{Float64},
     uk::Vector{Float64}
     )
-    # Função de construção do Tuple dos vetores das posições
-    # dos valores dos centros das células nas equações de
-    # conservação do momento
 
-    N = length(ɸk)
-    P = ɸk[1:N-1]
-    E = ɸk[2:N]
-    e = @. (1+sign(uk[2:N]))/2 * ɸk[1:N-1] + (1-sign(uk[2:N]))/2 * ɸk[2:N]
+    N = length(αk)
+    W = αk[1:N-2]
+    P = αk[2:N-1]
+    E = αk[3:N]
+    w = @. (1+sign(uk[2:N-1]))/2 * αk[1:N-2] + (1-sign(uk[2:N-1]))/2 * αk[2:N-1]
+    e = @. (1+sign(uk[3:N]))/2  * αk[2:N-1]  + (1-sign(uk[3:N]))/2  * αk[3:N]
 
-    return facemaingrid((P=P, E=E, e=e))
+    return facemaingrid((W=W, P=P, E=E, w=w, e=e))
 end
 
-const facesubgrid = NamedTuple{(:P, :E, :e),Tuple{Vector{Float64},Vector{Float64},Vector{Float64}}}
-function face_subgrid(
-    ɸk::Vector{Float64},
+const rhoCenter = NamedTuple{(:W, :P, :E, :w, :e),Tuple{SubArray{Float64, 1},SubArray{Float64, 1},SubArray{Float64, 1},Vector{Float64},Vector{Float64}}}
+function rho_center(
+    ρk::Vector{Float64},
     uk::Vector{Float64}
     )
-    # Função de construção do Tuple dos vetores das posições
-    # dos valores das faces das células nas equações de
-    # conservação do momento
 
-    N = length(ɸk)-1
-    P = @. (1+sign((uk[1:N-1]+uk[2:N])/2))/2 * ɸk[1:N-1] + (1-sign((uk[1:N-1]+uk[2:N])/2))/2 * ɸk[2:N]
-    E = @. (1+sign((uk[2:N]+uk[3:N+1])/2))/2 * ɸk[2:N] + (1-sign((uk[2:N]+uk[3:N+1])/2))/2 * ɸk[3:N+1]
-    e = ɸk[2:N]
+    N = length(ρk)
+    W = ρk[1:N-2]
+    P = ρk[2:N-1]
+    E = ρk[3:N]
+    w = @. (1+sign(uk[2:N-1]))/2 * ρk[1:N-2] + (1-sign(uk[2:N-1]))/2 * ρk[2:N-1]
+    e = @. (1+sign(uk[3:N]))/2  * ρk[2:N-1] + (1-sign(uk[3:N]))/2  * ρk[3:N]
 
-    return facesubgrid((P=P, E=E, e=e))
-end
- 
-const centermaingrid = NamedTuple{(:P, :w, :e),Tuple{Vector{Float64},Vector{Float64},Vector{Float64}}}
-function center_maingrid(
-    ɸk::Vector{Float64},
-    N::Int64
-    )
-    # Função de construção do Tuple dos vetores das posições
-    # dos valores dos centros das células nas equações de 
-    # continuidade e de correção de pressão
-
-    P = ɸk[2:N-1]
-    w = @. (ɸk[1:N-2] + ɸk[2:N-1])/2
-    e = @. (ɸk[2:N-1] + ɸk[3:N])/2
-
-    return centermaingrid((P=P, w=w, e=e))
+    return rhoCenter((W=W, P=P, E=E, w=w, e=e))
 end
 
-const centersubgrid = NamedTuple{(:w, :e),Tuple{Vector{Float64},Vector{Float64}}}
-function center_subgrid(
-    ɸk::Vector{Float64},
-    N::Int64
-    )
-    # Função de construção do Tuple dos vetores das posições
-    # dos valores das faces das células nas equações de 
-    # continuidade e de correção de pressão
+const uvelCenter = NamedTuple{(:w, :e),Tuple{SubArray{Float64, 1},SubArray{Float64, 1}}}
+function uvel_center(uk::Vector{Float64})
 
-    w = ɸk[2:N-1]
-    e = ɸk[3:N]
-
-    return centersubgrid((w=w, e=e))
+    N = length(uk)-1
+    w = @view uk[2:N-1]
+    e = @view uk[3:N]
+    
+    return uvelCenter((w=w, e=e))
 end
