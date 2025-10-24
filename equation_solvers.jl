@@ -16,8 +16,8 @@ function momentum_conservation_equation_solver(
     ρ_L::Float64
     )
 
-    uG_in = ux_G[1]
-    uL_in = ux_L[1]  
+    uG_in = u0_G[1]
+    uL_in = u0_L[1]  
 
     α0G = alpha_face(α0_G, ux_G)
     α0L = alpha_face(α0_L, ux_L)
@@ -30,62 +30,61 @@ function momentum_conservation_equation_solver(
     uxL = uvel_face(ux_L)
     Px = press_face(Px_)
 
-    ux_G = momentum_linear_system(α0G, u0G, αxG, uxG, Px, CATHARE, ρ_G, uG_in)
-    ux_L = momentum_linear_system(α0L, u0L, αxL, uxL, Px, CATHARE, ρ_L, uL_in)
+    ux_G = momentum_linear_system(α0G, u0G, αxG, uxG, Px, ρ_G, uG_in)
+    ux_L = momentum_linear_system(α0L, u0L, αxL, uxL, Px, ρ_L, uL_in)
     
     return ux_G, ux_L
 end
 
 function momentum_linear_system(
-    α0k::facemaingrid,
-    u0k::facesubgrid,
-    αxk::facemaingrid,
-    uxk::facesubgrid,
-    Px::facemaingrid,
+    α0k::alphaFace,
+    u0k::uvelFace,
+    αxk::alphaFace,
+    uxk::uvelFace,
+    Px::pressFace,
     ρ_k::Float64,
     uk_in::Float64
     )
     
     # Fluxos numéricos
-    F_E = @. ρ_k*αxk.E*uxk.E
-    F_P = @. ρ_k*αxk.P*uxk.P
+    F_E = @. ρ_k*αxk.E*uxk.E/Δx
+    F_P = @. ρ_k*αxk.P*uxk.P/Δx
     ΔF = F_E - F_P
     
     # Coeficientes pós-agrupamento
-    A_e = α0k.e
-    a0_e = @. ρ_k*α0k.e*(Δx/Δt)
+    A_e = αxk.e
+    a0_e = @. ρ_k*α0k.e/Δt
     a_w = @. max(F_P, 0)
     a_ee = @. max(0, -F_E)
     a_e = a0_e + a_w + a_ee + ΔF
 
     # Matriz A
     ## Diagonal principal
-    uk_D = a_e
-    uk_D_in = 1.0
-    uk_D_out = 1.0
-    uk_D = vcat([uk_D_in], uk_D, [uk_D_out])
+    uk_D = zeros(N+1)
+    uk_D[2:N] = a_e[:]
+    uk_D[1] = 1.0
+    uk_D[N+1] = 1.0
     ## Diagonal superior
-    uk_DU = -a_ee
-    uk_DU_in = 0.0
-    uk_DU = vcat([uk_DU_in], uk_DU)
+    uk_DU = zeros(N)
+    uk_DU[2:N] = -a_ee[:]
+    uk_DU[1] = 0.0
     ## Diagonal inferior
-    uk_DL = -a_w
-    uk_DL_out = -1.0
-    uk_DL = vcat(uk_DL, [uk_DL_out])
+    uk_DL = zeros(N)
+    uk_DL[1:N-1] = -a_w
+    uk_DL[N] = -1.0
     ## Construção da matriz A
     uk_A = Tridiagonal(uk_DL, uk_D, uk_DU)
     
     # Vetor b
-    uk_b = @. (
-        + A_e*(Px.P - Px.E)
+    uk_b = zeros(N+1)
+    uk_b[2:N] = @. (
         + a0_e*u0k.e
-        + ρ_k*αxk.e*g*sin(θ)*Δx
-        + CATHARE*(αxk.E - αxk.P)
+        + A_e*(Px.P - Px.E)
+        + ρ_k*αxk.e*g*sin(θ)
     )
-    uk_b_in = uk_in
-    uk_b_out = 0.0
-    uk_b = vcat([uk_b_in], uk_b, [uk_b_out])
-    
+    uk_b[1] = uk_in
+    uk_b[N+1] = 0.0
+
     # Solução do sistema linear
     uk_x = uk_A \ uk_b
 

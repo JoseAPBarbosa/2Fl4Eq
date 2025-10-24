@@ -4,7 +4,8 @@ function alpha_face(αk::Vector{Float64}, uk::Vector{Float64})
     N = length(αk)
     P = @view αk[1:N-1]
     E = @view αk[2:N]
-    e = @. (1+sign(uk[2:N]))/2 * αk[1:N-1] + (1-sign(uk[2:N]))/2 * αk[2:N]
+    #e = @. (1+sign(uk[2:N]))/2 * αk[1:N-1] + (1-sign(uk[2:N]))/2 * αk[2:N]
+    e = @. αk[1:N-1]/2 + αk[2:N]/2
 
     return alphaFace((P=P, E=E, e=e))
 end
@@ -15,18 +16,21 @@ function rho_face(ρk::Vector{Float64}, uk::Vector{Float64})
     N = length(ρk)
     P = @view ρk[1:N-1]
     E = @view ρk[2:N]
-    e = @. (1+sign(uk[2:N]))/2 * ρk[1:N-1] + (1-sign(uk[2:N]))/2 * ρk[2:N]
+    #e = @. (1+sign(uk[2:N]))/2 * ρk[1:N-1] + (1-sign(uk[2:N]))/2 * ρk[2:N]
+    e = @. ρk[1:N-1]/2 + ρk[2:N]/2
 
     return rhoFace((P=P, E=E, e=e))
 end
 
-const uvelFace = NamedTuple{(:e,),Tuple{SubArray{Float64, 1}}}
+const uvelFace = NamedTuple{(:P, :E, :e),Tuple{Vector{Float64},Vector{Float64},SubArray{Float64, 1}}}
 function uvel_face(uk::Vector{Float64})
 
     N = length(uk)-1
+    P = @. uk[1:N-1]/2 + uk[2:N]/2
+    E = @. uk[2:N]/2 + uk[3:N+1]/2
     e = @view uk[2:N]
-
-    return uvelFace((e=e,))
+    
+    return uvelFace((P=P, E=E, e=e))
 end
 
 const pressFace = NamedTuple{(:P, :E),Tuple{SubArray{Float64, 1},SubArray{Float64, 1}}}
