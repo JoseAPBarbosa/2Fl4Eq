@@ -5,15 +5,19 @@ include("./initialization.jl")
 ### Processamento ####
 include("./equation_solvers.jl")
 
-t = 0
-while t < 1
-    global t
-    #cont = 0
+for t = 1:Nt
+    global α0_G, α0_L, u0_G, u0_L, P0_
+    global αx_G, αx_L, ux_G, ux_L, Px_
+    global α_G , α_L , u_G , u_L , P_
+    global e_uL, e_uG, e_αL, e_αG, e_P
+
+    e_uL = 1
+    e_uG = 1
+    e_αL = 1
+    e_αG = 1
+    e_P = 1
+
     while e_uL > Tol_u || e_uG > Tol_u || e_αL > Tol_α || e_αG > Tol_α || e_P > Tol_P
-        global α0_G, α0_L, u0_G, u0_L, P0_
-        global αx_G, αx_L, ux_G, ux_L, Px_
-        global α_G, α_L, u_G, u_L, P_
-        global N, ρ_G, ρ_L, e_uL, e_uG, e_αL, e_αG, e_P, cont
 
         # Equação do momento
         ux_G, ux_L = momentum_conservation_equation_solver( α0_G, α0_L, u0_G, u0_L, 
@@ -25,10 +29,10 @@ while t < 1
                                                             ux_G, ux_L, Px_, 
                                                             ρ_G, ρ_L,       )
 
-        #= Equação de conservação
+        # Equação de conservação
         α_G, α_L = void_fraction_equation_solver(   α0_G, α0_L, 
                                                     u_G, u_L, 
-                                                    ρ_G, ρ_L, N )
+                                                    ρ_G, ρ_L    )
 
         # Cálculo dos erros
         e_αL = norm(α_L - αx_L) / norm(αx_L)
@@ -43,16 +47,12 @@ while t < 1
         ux_G[:] = u_G[:]
         ux_L[:] = u_L[:]
         Px_[:] = P_[:]
-        =#
-        break
     end
-    break
-    #= Atualização Temporal -------------------------------------------------
+
+    # Atualização Temporal -------------------------------------------------
     α0_G[:] = α_G[:]
     α0_L[:] = α_L[:]
     u0_G[:] = u_G[:]
     u0_L[:] = u_L[:]
     P0_[:] = P_[:]
-    t = t+1
-    =#
 end

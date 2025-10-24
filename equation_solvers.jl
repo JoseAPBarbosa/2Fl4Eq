@@ -70,7 +70,7 @@ function momentum_linear_system(
     uk_DU[1] = 0.0
     ## Diagonal inferior
     uk_DL = zeros(N)
-    uk_DL[1:N-1] = -a_w
+    uk_DL[1:N-1] = -a_w[:]
     uk_DL[N] = -1.0
     ## Construção da matriz A
     uk_A = Tridiagonal(uk_DL, uk_D, uk_DU)
@@ -211,7 +211,7 @@ function momentum_coefficients_for_pressure_equation(
     return A_ke, a_ke, Ak, ak
 end
 =#
-#=
+
 # Equações de fração volumétrica
 function void_fraction_equation_solver(
     α0_G::Vector{Float64},
@@ -219,18 +219,16 @@ function void_fraction_equation_solver(
     u_G::Vector{Float64},
     u_L::Vector{Float64},
     ρ_G::Float64,
-    ρ_L::Float64,
-    N::Int64
+    ρ_L::Float64
     )
 
     αG_in = α0_G[1]
     αL_in = α0_L[1] 
 
-    α0G = center_maingrid(α0_G, N)
-    α0L = center_maingrid(α0_L, N)
-
-    uG = center_subgrid(u_G, N)
-    uL = center_subgrid(u_L, N)
+    α0G = alpha_center(α0_G, u_G)
+    α0L = alpha_center(α0_L, u_L)
+    uG = uvel_center(u_G)
+    uL = uvel_center(u_L)
 
     αx_G = void_fraction_linear_system(α0G, uG, ρ_G, αG_in)
     αx_L = void_fraction_linear_system(α0L, uL, ρ_L, αL_in)
@@ -242,49 +240,48 @@ function void_fraction_equation_solver(
 end
 
 function void_fraction_linear_system(
-    α0k::centermaingrid,
-    uk::centersubgrid,
+    α0k::alphaCenter,
+    uk::uvelCenter,
     ρ_k::Float64,
     αk_in::Float64
     )
 
     # Fluxos numéricos
-    F_e = @. ρ_k*uk.e
-    F_w = @. ρ_k*uk.w
+    F_e = @. ρ_k*uk.e/Δx
+    F_w = @. ρ_k*uk.w/Δx
     ΔF = F_e - F_w
 
     # Coeficientes pós-agrupamento
-    a0_P = ρ_k*(Δx/Δt)
+    a0_P = ρ_k/Δt
     a_W = @. max(F_w, 0)
     a_E = @. max(0, -F_e)
-    a_P = @. a0_P - a_W - a_E - ΔF
+    a_P = @. a0_P + a_W + a_E + ΔF
 
     # Matriz A
     ## Diagonal principal
-    αk_D = a_P
-    αk_D_in = 1.0
-    αk_D_out = 1.0
-    αk_D = vcat([αk_D_in], αk_D, [αk_D_out])
+    αk_D = zeros(N)
+    αk_D[2:N-1] = a_P[:]
+    αk_D[1] = 1.0
+    αk_D[N] = 1.0
     ## Diagonal superior
-    αk_DU = a_E
-    αk_DU_in = 0.0
-    αk_DU = append!([αk_DU_in], αk_DU)
+    αk_DU = zeros(N-1)
+    αk_DU[2:N-1] = -a_E[:]
+    αk_DU[1] = 0.0
     ## Diagonal inferior
-    αk_DL = a_W
-    αk_DL_out = -1.0
-    αk_DL = append!(αk_DL, [αk_DL_out])
+    αk_DL = zeros(N-1)
+    αk_DL[1:N-2] = -a_W[:]
+    αk_DL[N-1] = -1.0
     ## Construção da matriz A
     αk_A = Tridiagonal(αk_DL, αk_D, αk_DU)
 
     # Vetor b
-    αk_b = @. a0_P*α0k.P
-    αk_b_in = αk_in
-    αk_b_out = 0.0
-    αk_b = vcat([αk_b_in], αk_b, [αk_b_out])
+    αk_b = zeros(N)
+    αk_b[2:N-1] = @. a0_P*α0k.P
+    αk_b[1] = αk_in
+    αk_b[N] = 0.0
 
     # Solução do sistema linear
     αk_x = αk_A \ αk_b
 
     return αk_x
 end
-=#
