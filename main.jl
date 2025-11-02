@@ -23,7 +23,8 @@ for t = 1:Nt
         ux_G, ux_L = momentum_conservation_equation_solver( α0_G, α0_L, u0_G, u0_L, 
                                                             αx_G, αx_L, ux_G, ux_L, 
                                                             Px_, ρ_G, ρ_L   )
-
+        display(ux_L)
+        break
         # Equação de correção de pressão
         u_G, u_L, P_ = pressure_correction_equation_solver( α0_G, α0_L, αx_G, αx_L,
                                                             ux_G, ux_L, Px_, 
@@ -33,7 +34,7 @@ for t = 1:Nt
         α_G, α_L = void_fraction_equation_solver(   α0_G, α0_L, 
                                                     u_G, u_L, 
                                                     ρ_G, ρ_L    )
-
+        
         # Cálculo dos erros
         e_αL = norm(α_L - αx_L) / norm(αx_L)
         e_αG = norm(α_G - αx_G) / norm(αx_G)
@@ -48,7 +49,7 @@ for t = 1:Nt
         ux_L[:] = u_L[:]
         Px_[:] = P_[:]
     end
-
+    break
     # Atualização Temporal -------------------------------------------------
     α0_G[:] = α_G[:]
     α0_L[:] = α_L[:]

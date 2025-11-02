@@ -1,7 +1,10 @@
 include("./position_tuples.jl")
 
 
-# Equações de momento
+#=============================================================================#
+# Equações de momento                                                         #
+#=============================================================================#
+
 function momentum_conservation_equation_solver(
     α0_G::Vector{Float64},
     α0_L::Vector{Float64},
@@ -16,9 +19,6 @@ function momentum_conservation_equation_solver(
     ρ_L::Float64
     )
 
-    uG_in = u0_G[1]
-    uL_in = u0_L[1]  
-
     α0G = alpha_face(α0_G, ux_G)
     α0L = alpha_face(α0_L, ux_L)
     u0G = uvel_face(u0_G)
@@ -30,8 +30,10 @@ function momentum_conservation_equation_solver(
     uxL = uvel_face(ux_L)
     Px = press_face(Px_)
 
-    ux_G = momentum_linear_system(α0G, u0G, αxG, uxG, Px, ρ_G, uG_in)
-    ux_L = momentum_linear_system(α0L, u0L, αxL, uxL, Px, ρ_L, uL_in)
+    CATHARE = @. γ*((ρ_G*αxG.e*αxL.e*ρ_L)/(ρ_L*αxG.e + ρ_G*αxL.e))*(uxG.e - uxL.e)^2
+
+    ux_G = momentum_linear_system(α0G, u0G, αxG, uxG, Px, ρ_G, CATHARE)
+    ux_L = momentum_linear_system(α0L, u0L, αxL, uxL, Px, ρ_L, CATHARE)
     
     return ux_G, ux_L
 end
@@ -43,7 +45,7 @@ function momentum_linear_system(
     uxk::uvelFace,
     Px::pressFace,
     ρ_k::Float64,
-    uk_in::Float64
+    CATHARE::Vector{Float64}
     )
     
     # Fluxos numéricos
@@ -78,11 +80,12 @@ function momentum_linear_system(
     # Vetor b
     uk_b = zeros(N+1)
     uk_b[2:N] = @. (
-        + a0_e*u0k.e
         + A_e*(Px.P - Px.E)
+        + a0_e*u0k.e
+        + CATHARE*(αxk.E - αxk.P)
         + ρ_k*αxk.e*g*sin(θ)
     )
-    uk_b[1] = uk_in
+    uk_b[1] = u0k.in
     uk_b[N+1] = 0.0
 
     # Solução do sistema linear
@@ -91,7 +94,11 @@ function momentum_linear_system(
     return uk_x
 end
 
-# Equação de correção de pressão
+
+#=============================================================================#
+# Equação de correção de pressão                                              #
+#=============================================================================#
+
 function pressure_correction_equation_solver(
     α0_G::Vector{Float64},
     α0_L::Vector{Float64},
@@ -212,7 +219,10 @@ function momentum_coefficients_for_pressure_equation(
 end
 =#
 
-# Equações de fração volumétrica
+#=============================================================================#
+# Equações de fração volumétrica                                              #
+#=============================================================================#
+#=
 function void_fraction_equation_solver(
     α0_G::Vector{Float64},
     α0_L::Vector{Float64},
@@ -285,3 +295,4 @@ function void_fraction_linear_system(
 
     return αk_x
 end
+=#
