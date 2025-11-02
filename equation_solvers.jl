@@ -111,11 +111,6 @@ function pressure_correction_equation_solver(
     ρ_L::Float64
     )
 
-    d_G = Δt/(ρ_G*Δx)
-    d_L = Δt/(ρ_L*Δx)
-    #A_Ge, a_Ge, AG, aG = momentum_coefficients_for_pressure_equation(α0_G, αx_G, ux_G, ρ_G)
-    #A_Le, a_Le, AL, aL = momentum_coefficients_for_pressure_equation(α0_L, αx_L, ux_L, ρ_L)
-
     α0G = alpha_center(α0_G, ux_G)
     α0L = alpha_center(α0_L, ux_L)
     αxG = alpha_center(αx_G, ux_G)
@@ -123,29 +118,33 @@ function pressure_correction_equation_solver(
     uxG = uvel_center(ux_G)
     uxL = uvel_center(ux_L)
 
+    # Coeficientes da equação de momento
+    D_G, DG = momentum_coefficients_for_pressure_equation(α0_G, αx_G, ux_G, ρ_G)
+    D_L, DL = momentum_coefficients_for_pressure_equation(α0_L, αx_L, ux_L, ρ_L)
+
     # Matriz A
     ## Diagonal principal
     δP_D = zeros(N)
     δP_D[2:N-1] = @. (
-        + αxG.e * d_G
-        + αxG.w * d_G
-        + αxL.e * d_L
-        + αxL.w * d_L
+        + αxG.e * DG.e
+        + αxG.w * DG.w
+        + αxL.e * DL.e
+        + αxL.w * DL.w
     )
     δP_D[1] = 1.0
     δP_D[N] = 1.0
     ## Diagonal superior
     δP_DU = zeros(N-1)
     δP_DU[2:N-1] = @. (
-        - αxG.e * d_G
-        - αxL.e * d_L
+        - αxG.e * DG.e
+        - αxL.e * DL.e
     )  
     δP_DU[1] = -1.0
     ## Diagonal inferior
     δP_DL = zeros(N-1)
     δP_DL[1:N-2] = @. (
-        - αxG.w * d_G
-        - αxL.w * d_L
+        - αxG.w * DG.w
+        - αxL.w * DL.w
     )
     δP_DL[N-1] = 0.0
     ## Construção da matriz A
@@ -169,9 +168,9 @@ function pressure_correction_equation_solver(
 
     # Correção dos valores
     ## Correção das velocidades
-    u_G[2:N] = @. ux_G[2:N] + d_G*(δP_x[1:N-1] - δP_x[2:N])
+    u_G[2:N] = @. ux_G[2:N] + D_G*(δP_x[1:N-1] - δP_x[2:N])
     u_G[N+1] = u_G[N]
-    u_L[2:N] = @. ux_L[2:N] + d_L*(δP_x[1:N-1] - δP_x[2:N])
+    u_L[2:N] = @. ux_L[2:N] + D_L*(δP_x[1:N-1] - δP_x[2:N])
     u_L[N+1] = u_L[N]
     ## Correção da pressão
     P_ = @. Px_ + δP_x
@@ -179,11 +178,10 @@ function pressure_correction_equation_solver(
     return u_G, u_L, P_
 end
 
-#=
 function momentum_coefficients_for_pressure_equation(
-    α0k::alphaface,
-    αxk::alphaface,
-    uxk::uvelFace,
+    α0k::Vector{Float64},
+    αxk::Vector{Float64},
+    uxk::Vector{Float64},
     ρ_k::Float64
     )
 
@@ -204,25 +202,21 @@ function momentum_coefficients_for_pressure_equation(
     a_w = @. max(F_P, 0)
     a_ee = @. max(0, -F_E)
     a_e = @. a0_e + a_w + a_ee + ΔF
+    D_k = @. A_e/a_e
 
-    # Tuples de posição
-    Ak = @views (
-        w = A_e[2:N-1],
-        e = A_e[1:N-2],
-    )
-    ak = @views (
-        w = a_e[2:N-1],
-        e = a_e[1:N-2],
+    # Tuple de posição
+    Dk = @views (
+        w = D_k[1:N-2],
+        e = D_k[2:N-1],
     )
 
-    return A_ke, a_ke, Ak, ak
+    return D_k, Dk
 end
-=#
 
 #=============================================================================#
 # Equações de fração volumétrica                                              #
 #=============================================================================#
-#=
+
 function void_fraction_equation_solver(
     α0_G::Vector{Float64},
     α0_L::Vector{Float64},
@@ -232,16 +226,13 @@ function void_fraction_equation_solver(
     ρ_L::Float64
     )
 
-    αG_in = α0_G[1]
-    αL_in = α0_L[1] 
-
     α0G = alpha_center(α0_G, u_G)
     α0L = alpha_center(α0_L, u_L)
     uG = uvel_center(u_G)
     uL = uvel_center(u_L)
 
-    αx_G = void_fraction_linear_system(α0G, uG, ρ_G, αG_in)
-    αx_L = void_fraction_linear_system(α0L, uL, ρ_L, αL_in)
+    αx_G = void_fraction_linear_system(α0G, uG, ρ_G)
+    αx_L = void_fraction_linear_system(α0L, uL, ρ_L)
 
     α_L[2:N] = @. αx_L[2:N] / (αx_L[2:N] + αx_G[2:N])
     α_G[2:N] = @. 1.0 - α_L[2:N]
@@ -252,8 +243,7 @@ end
 function void_fraction_linear_system(
     α0k::alphaCenter,
     uk::uvelCenter,
-    ρ_k::Float64,
-    αk_in::Float64
+    ρ_k::Float64
     )
 
     # Fluxos numéricos
@@ -287,7 +277,7 @@ function void_fraction_linear_system(
     # Vetor b
     αk_b = zeros(N)
     αk_b[2:N-1] = @. a0_P*α0k.P
-    αk_b[1] = αk_in
+    αk_b[1] = α0k.in
     αk_b[N] = 0.0
 
     # Solução do sistema linear
@@ -295,4 +285,3 @@ function void_fraction_linear_system(
 
     return αk_x
 end
-=#

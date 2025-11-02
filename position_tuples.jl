@@ -86,7 +86,7 @@ function rho_center(ρk::Vector{Float64}, uk::Vector{Float64})
     return alphaCenter((in=in, W=W, P=P, E=E, w=w, e=e,))
 end
 
-const uvelCenter = NamedTuple{(:in, :P, :E, :e),Tuple{Float64,Vector{Float64},Vector{Float64},SubArray{Float64, 1}}}
+const uvelCenter = NamedTuple{(:in, :w, :e),Tuple{Float64,SubArray{Float64, 1},SubArray{Float64, 1}}}
 function uvel_center(uk::Vector{Float64})
 
     N = length(uk)-1
