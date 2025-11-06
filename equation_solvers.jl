@@ -1,4 +1,4 @@
-include("./position_tuples.jl")
+include("./position_structs.jl")
 
 
 #=============================================================================#
@@ -19,16 +19,16 @@ function momentum_conservation_equation_solver(
     ρ_L::Float64
     )
 
-    α0G = alpha_face(α0_G, ux_G)
-    α0L = alpha_face(α0_L, ux_L)
-    u0G = uvel_face(u0_G)
-    u0L = uvel_face(u0_L)
+    α0G = AlphaFace(α0_G, ux_G)
+    α0L = AlphaFace(α0_L, ux_L)
+    u0G = UVelFace(u0_G)
+    u0L = UVelFace(u0_L)
 
-    αxG = alpha_face(αx_G, ux_G)
-    αxL = alpha_face(αx_L, ux_L)
-    uxG = uvel_face(ux_G)
-    uxL = uvel_face(ux_L)
-    Px = press_face(Px_)
+    αxG = AlphaFace(αx_G, ux_G)
+    αxL = AlphaFace(αx_L, ux_L)
+    uxG = UVelFace(ux_G)
+    uxL = UVelFace(ux_L)
+    Px = PressFace(Px_)
 
     CATHARE = @. γ*((ρ_G*αxG.e*αxL.e*ρ_L)/(ρ_L*αxG.e + ρ_G*αxL.e))*(uxG.e - uxL.e)^2
 
@@ -39,11 +39,11 @@ function momentum_conservation_equation_solver(
 end
 
 function momentum_linear_system(
-    α0k::alphaFace,
-    u0k::uvelFace,
-    αxk::alphaFace,
-    uxk::uvelFace,
-    Px::pressFace,
+    α0k::AlphaFace,
+    u0k::UVelFace,
+    αxk::AlphaFace,
+    uxk::UVelFace,
+    Px::PressFace,
     ρ_k::Float64,
     CATHARE::Vector{Float64}
     )
@@ -111,12 +111,12 @@ function pressure_correction_equation_solver(
     ρ_L::Float64
     )
 
-    α0G = alpha_center(α0_G, ux_G)
-    α0L = alpha_center(α0_L, ux_L)
-    αxG = alpha_center(αx_G, ux_G)
-    αxL = alpha_center(αx_L, ux_L)
-    uxG = uvel_center(ux_G)
-    uxL = uvel_center(ux_L)
+    α0G = AlphaCenter(α0_G, ux_G)
+    α0L = AlphaCenter(α0_L, ux_L)
+    αxG = AlphaCenter(αx_G, ux_G)
+    αxL = AlphaCenter(αx_L, ux_L)
+    uxG = UVelCenter(ux_G)
+    uxL = UVelCenter(ux_L)
 
     # Coeficientes da equação de momento
     D_G, DG = momentum_coefficients_for_pressure_equation(α0_G, αx_G, ux_G, ρ_G)
@@ -185,9 +185,9 @@ function momentum_coefficients_for_pressure_equation(
     ρ_k::Float64
     )
 
-    α0k = alpha_face(α0k, uxk)
-    αxk = alpha_face(αxk, uxk)
-    uxk = uvel_face(uxk)
+    α0k = AlphaFace(α0k, uxk)
+    αxk = AlphaFace(αxk, uxk)
+    uxk = UVelFace(uxk)
 
     # Fluxos numéricos
     ## Fase gasosa
@@ -226,10 +226,10 @@ function void_fraction_equation_solver(
     ρ_L::Float64
     )
 
-    α0G = alpha_center(α0_G, u_G)
-    α0L = alpha_center(α0_L, u_L)
-    uG = uvel_center(u_G)
-    uL = uvel_center(u_L)
+    α0G = AlphaCenter(α0_G, u_G)
+    α0L = AlphaCenter(α0_L, u_L)
+    uG = UVelCenter(u_G)
+    uL = UVelCenter(u_L)
 
     αx_G = void_fraction_linear_system(α0G, uG, ρ_G)
     αx_L = void_fraction_linear_system(α0L, uL, ρ_L)
@@ -241,8 +241,8 @@ function void_fraction_equation_solver(
 end
 
 function void_fraction_linear_system(
-    α0k::alphaCenter,
-    uk::uvelCenter,
+    α0k::AlphaCenter,
+    uk::UVelCenter,
     ρ_k::Float64
     )
 
