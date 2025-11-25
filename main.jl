@@ -20,19 +20,13 @@ for t = 1:Nt
     while e_uL > Tol_u || e_uG > Tol_u || e_αL > Tol_α || e_αG > Tol_α || e_P > Tol_P
 
         # Equação do momento
-        ux_G, ux_L = momentum_conservation_equation_solver( α0_G, α0_L, u0_G, u0_L, 
-                                                            αx_G, αx_L, ux_G, ux_L, 
-                                                            Px_, ρ_G, ρ_L   )
+        ux_G, ux_L = momentum_conservation_equation_solver(α0_G, α0_L, u0_G, u0_L, αx_G, αx_L, ux_G, ux_L, Px_, ρ_G, ρ_L)
 
         # Equação de correção de pressão
-        u_G, u_L, P_ = pressure_correction_equation_solver( α0_G, α0_L, αx_G, αx_L,
-                                                            ux_G, ux_L, Px_, 
-                                                            ρ_G, ρ_L,       )
+        u_G, u_L, P_ = pressure_correction_equation_solver(α0_G, α0_L, αx_G, αx_L, ux_G, ux_L, Px_, ρ_G, ρ_L)
         
         # Equação de conservação
-        α_G, α_L = void_fraction_equation_solver(   α0_G, α0_L, 
-                                                    u_G, u_L, 
-                                                    ρ_G, ρ_L    )
+        α_G, α_L = void_fraction_equation_solver(α0_G, α0_L, u_G, u_L, ρ_G, ρ_L)
         
         # Cálculo dos erros
         e_αL = norm(α_L - αx_L) / norm(αx_L)
@@ -56,3 +50,4 @@ for t = 1:Nt
     u0_L[:] = u_L[:]
     P0_[:] = P_[:]
 end
+println("ok")

@@ -79,7 +79,7 @@ function momentum_linear_system(
     
     # Vetor b
     uk_b = zeros(N+1)
-    uk_b[2:N] = @. (
+    uk_b[2:N] = @. (1/Δx)*(
         + A_e*(Px.P - Px.E)
         + a0_e*u0k.e
         + CATHARE*(αxk.E - αxk.P)
@@ -276,7 +276,7 @@ function void_fraction_linear_system(
 
     # Vetor b
     αk_b = zeros(N)
-    αk_b[2:N-1] = @. a0_P*α0k.P
+    αk_b[2:N-1] = @. a0_P*α0k.P/Δx
     αk_b[1] = α0k.in
     αk_b[N] = 0.0
 
