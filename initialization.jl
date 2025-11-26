@@ -58,25 +58,3 @@ e_uG = 1
 e_αL = 1
 e_αG = 1
 e_P = 1
-
-using Random
-Random.seed!(1234)
-
-function slopes(ϕk)
-    N = length(ϕk)
-    
-    r = zeros(N-2)
-    r[:] = @. (ϕk[2:N-1] - ϕk[1:N-2])/(ϕk[3:N] - ϕk[2:N-1] + 1e-12)
-    
-    rR = zeros(N-2)
-    rR[1:end-1] = @. (ϕk[3:N-1] - ϕk[2:N-2])/(ϕk[4:N] - ϕk[3:N-1] + 1e-12)
-    rR[end] = 0
-
-    rL = zeros(N-2)
-    rL[1] = 0
-    rL[2:end] = @. (ϕk[2:N-2] - ϕk[1:N-3])/(ϕk[3:N-1] - ϕk[2:N-2] + 1e-12)
-    
-    return rR, r, rL
-end
-
-rR, r, rL = slopes(rand(10))
