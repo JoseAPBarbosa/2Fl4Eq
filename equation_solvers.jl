@@ -1,5 +1,4 @@
 include("./position_structs.jl")
-include("./initialization.jl")
 
 
 #=============================================================================#

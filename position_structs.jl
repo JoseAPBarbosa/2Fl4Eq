@@ -1,11 +1,12 @@
+include("./initialization.jl")
 include("./interpolation_methods.jl")
-
+include("./MUSCL_flux.jl")
 
 #=============================================================================#
 # Structs das faces                                                           #
 #=============================================================================#
 
-struct AlphaFace{T <: AbstractFloat}
+struct AlphaFace
     in :: Float64
     P :: SubArray{Float64, 1}
     E :: SubArray{Float64, 1}
@@ -17,11 +18,11 @@ struct AlphaFace{T <: AbstractFloat}
         P = @view αk[1:N-1]
         E = @view αk[2:N]
         e = upwind_interpolation(αk, uk[2:N])
-        new{T}(in, P, E, e)
+        new(in, P, E, e)
     end
 end
 
-struct RhoFace{T <: AbstractFloat}
+struct RhoFace
     in :: Float64
     P :: SubArray{Float64, 1}
     E :: SubArray{Float64, 1}
@@ -33,11 +34,11 @@ struct RhoFace{T <: AbstractFloat}
         P = @view ρk[1:N-1]
         E = @view ρk[2:N]
         e = upwind_interpolation(ρk, uk[2:N])
-        new{T}(in, P, E, e)
+        new(in, P, E, e)
     end
 end
 
-struct UVelFace{T <: AbstractFloat}
+struct UVelFace
     in :: Float64
     P :: Vector{Float64}
     E :: Vector{Float64}
@@ -46,14 +47,13 @@ struct UVelFace{T <: AbstractFloat}
     function UVelFace(uk :: Vector{Float64})
         N = length(uk)-1
         in = uk[1]
-        P = upwind_interpolation(uk[1:N], (uk[1:N-1]+uk[2:N])/2)
-        E = upwind_interpolation(uk[2:N+1], (uk[2:N]+uk[3:N+1])/2)
+        P, E = MUSCL_fluxes(uk, Δx, Δt)
         e = @view uk[2:N]
-        new{T}(in, P, E, e)
+        new(in, P, E, e)
     end
 end
 
-struct PressFace{T <: AbstractFloat}
+struct PressFace
     out :: Float64
     P :: Vector{Float64}
     E :: Vector{Float64}
@@ -63,7 +63,7 @@ struct PressFace{T <: AbstractFloat}
         out = P_[1]
         P = @view P_[1:N-1]
         E = @view P_[2:N]
-        new{T}(out, P, E)
+        new(out, P, E)
     end
 end
 
