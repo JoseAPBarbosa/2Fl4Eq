@@ -1,66 +1,58 @@
 include("./initialization.jl")
 include("./interpolation_methods.jl")
-include("./MUSCL_flux.jl")
 
 #=============================================================================#
-# Structs das faces                                                           #
+# Structs das equações da malha secundária                                    #
 #=============================================================================#
 
-struct AlphaFace
+struct AlphaSubGrid
     in :: Float64
     P :: SubArray{Float64, 1}
     E :: SubArray{Float64, 1}
     e :: Vector{Float64}
 
-    function AlphaFace(αk :: Vector{Float64}, uk :: Vector{Float64})
-        N = length(αk)
+    function AlphaSubGrid(αk :: Vector{Float64}, uk :: Vector{Float64}, N :: Int64)
         in = αk[1]
         P = @view αk[1:N-1]
         E = @view αk[2:N]
         e = upwind_interpolation(αk, uk[2:N])
-        new(in, P, E, e)
+        new(in, P, E, e,)
     end
 end
 
-struct RhoFace
+struct RhoSubGrid
     in :: Float64
     P :: SubArray{Float64, 1}
     E :: SubArray{Float64, 1}
     e :: Vector{Float64}
 
-    function RhoFace(ρk :: Vector{Float64}, uk :: Vector{Float64})
-        N = length(ρk)
+    function RhoSubGrid(ρk :: Vector{Float64}, uk :: Vector{Float64}, N :: Int64)
         in = ρk[1]
         P = @view ρk[1:N-1]
         E = @view ρk[2:N]
         e = upwind_interpolation(ρk, uk[2:N])
-        new(in, P, E, e)
+        new(in, P, E, e,)
     end
 end
 
-struct UVelFace
+struct UVelSubGrid
     in :: Float64
-    P :: Vector{Float64}
-    E :: Vector{Float64}
     e :: SubArray{Float64, 1}
 
-    function UVelFace(uk :: Vector{Float64})
-        N = length(uk)-1
+    function UVelSubGrid(uk :: Vector{Float64}, N :: Int64)
         in = uk[1]
-        P, E = MUSCL_fluxes(uk, Δx, Δt)
         e = @view uk[2:N]
-        new(in, P, E, e)
+        new(in, e,)
     end
 end
 
-struct PressFace
+struct PressSubGrid
     out :: Float64
     P :: Vector{Float64}
     E :: Vector{Float64}
 
-    function PressFace(P_ :: Vector{Float64})
-        N = length(P_)
-        out = P_[1]
+    function PressSubGrid(P_ :: Vector{Float64}, N :: Int64)
+        out = P_[N]
         P = @view P_[1:N-1]
         E = @view P_[2:N]
         new(out, P, E)
@@ -69,7 +61,7 @@ end
 
 
 #=============================================================================#
-# Structs dos centros                                                         #
+# Structs das equações da malha primária                                      #
 #=============================================================================#
 
 struct AlphaCenter
@@ -134,7 +126,7 @@ struct PressCenter
 
     function PressCenter(P_ :: Vector{Float64})
         N = length(P_)
-        out = P_[1]
+        out = P_[N]
         W = @view P_[1:N-2]
         P = @view P_[2:N-1]
         E = @view P_[3:N]
