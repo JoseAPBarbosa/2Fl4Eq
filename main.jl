@@ -1,15 +1,15 @@
 ### Inicialização ###
 include("./initialization.jl")
-
+using Plots
 
 ### Processamento ####
 include("./equation_solvers.jl")
 
 for t = 1:Nt
-    global α0_G, α0_L, u0_G, u0_L, P0_
-    global αx_G, αx_L, ux_G, ux_L, Px_
-    global α_G , α_L , u_G , u_L , P_
-    global e_uL, e_uG, e_αL, e_αG, e_P
+    global α0_G, ρ0_G, u0_G, α0_L, ρ0_L, u0_L, P0
+    global αx_G, ρx_G, ux_G, αx_L, ρx_L, ux_L, Px
+    global α_G, ρ_G, u_G, α_L, ρ_L, u_L, P
+    global e_uL, e_uG, e_αL, e_αG, e_P, CG, CL
 
     e_uL = 1
     e_uG = 1
@@ -20,12 +20,12 @@ for t = 1:Nt
     while e_uL > Tol_u || e_uG > Tol_u || e_αL > Tol_α || e_αG > Tol_α || e_P > Tol_P
 
         # Equação do momento
-        ux_G, ux_L = momentum_conservation_equation_solver(α0_G, α0_L, u0_G, u0_L, αx_G, αx_L, ux_G, ux_L, Px_, ρ_G, ρ_L)
+        ux_G, ux_L = guessed_velocity_equation_solver(α0_G, ρ0_G, u0_G, α0_L, ρ0_L, u0_L, αx_G, ρx_G, ux_G, αx_L, ρx_L, ux_L, Px, g, θ, γ, N, Δx, Δt)
 
         # Equação de correção de pressão
-        u_G, u_L, P_ = pressure_correction_equation_solver(α0_G, α0_L, αx_G, αx_L, ux_G, ux_L, Px_, ρ_G, ρ_L)
+        ρ_G, ρ_L, u_G, u_L, P = pressure_correction_equation_solver(α0_G, ρ0_G, α0_L, ρ0_L, αx_G, ρx_G, ux_G, αx_L, ρx_L, ux_L, Px, CG, CL, N, Δx, Δt)
         
-        # Equação de conservação
+        #= Equação de conservação
         α_G, α_L = void_fraction_equation_solver(α0_G, α0_L, u_G, u_L, ρ_G, ρ_L)
         
         # Cálculo dos erros
@@ -40,14 +40,16 @@ for t = 1:Nt
         αx_L[:] = α_L[:]
         ux_G[:] = u_G[:]
         ux_L[:] = u_L[:]
-        Px_[:] = P_[:]
+        Px_[:] = P_[:]=#
+        break
     end
 
-    # Atualização Temporal -------------------------------------------------
+    #= Atualização Temporal -------------------------------------------------
     α0_G[:] = α_G[:]
     α0_L[:] = α_L[:]
     u0_G[:] = u_G[:]
     u0_L[:] = u_L[:]
-    P0_[:] = P_[:]
+    P0_[:] = P_[:]=#
+    break
 end
 println("ok")

@@ -1,6 +1,3 @@
-include("./initialization.jl")
-include("./interpolation_methods.jl")
-
 #=============================================================================#
 # Structs das equações da malha secundária                                    #
 #=============================================================================#
@@ -15,7 +12,7 @@ struct AlphaSubGrid
         in = αk[1]
         P = @view αk[1:N-1]
         E = @view αk[2:N]
-        e = upwind_interpolation(αk, uk[2:N])
+        e = @. (1+sign(uk[2:N]))/2 * αk[1:N-1] + (1-sign(uk[2:N]))/2 * αk[2:N]
         new(in, P, E, e,)
     end
 end
@@ -30,7 +27,7 @@ struct RhoSubGrid
         in = ρk[1]
         P = @view ρk[1:N-1]
         E = @view ρk[2:N]
-        e = upwind_interpolation(ρk, uk[2:N])
+        e = @. (1+sign(uk[2:N]))/2 * ρk[1:N-1] + (1-sign(uk[2:N]))/2 * ρk[2:N]
         new(in, P, E, e,)
     end
 end
@@ -64,7 +61,7 @@ end
 # Structs das equações da malha primária                                      #
 #=============================================================================#
 
-struct AlphaCenter
+struct AlphaMainGrid
     in :: Float64
     W :: SubArray{Float64, 1}
     P :: SubArray{Float64, 1}
@@ -72,19 +69,18 @@ struct AlphaCenter
     w :: Vector{Float64}
     e :: Vector{Float64}
 
-    function AlphaCenter(αk :: Vector{Float64}, uk :: Vector{Float64})
-        N = length(αk)
+    function AlphaMainGrid(αk :: Vector{Float64}, uk :: Vector{Float64}, N :: Int64)
         in = αk[1]
         W = @view αk[1:N-2]
         P = @view αk[2:N-1]
         E = @view αk[3:N]
-        w = upwind_interpolation(αk[1:N-1], uk[2:N-1])
-        e = upwind_interpolation(αk[2:N], uk[3:N])
+        w = @. (1+sign(uk[2:N-1]))/2 * αk[1:N-2] + (1-sign(uk[2:N-1]))/2 * αk[2:N-1]
+        e = @. (1+sign(uk[3:N]))/2   * αk[2:N-1] + (1-sign(uk[3:N]))/2   * αk[3:N]
         new(in, W, P, E, w, e)
     end
 end
 
-struct RhoCenter
+struct RhoMainGrid
     in :: Float64
     W :: SubArray{Float64, 1}
     P :: SubArray{Float64, 1}
@@ -92,25 +88,23 @@ struct RhoCenter
     w :: Vector{Float64}
     e :: Vector{Float64}
 
-    function RhoCenter(ρk :: Vector{Float64}, uk :: Vector{Float64})
-        N = length(ρk)
+    function RhoMainGrid(ρk :: Vector{Float64}, uk :: Vector{Float64}, N :: Int64)
         in = ρk[1]
         W = @view ρk[1:N-2]
         P = @view ρk[2:N-1]
         E = @view ρk[3:N]
-        w = upwind_interpolation(ρk[1:N-1], uk[2:N-1])
-        e = upwind_interpolation(ρk[2:N], uk[3:N])
+        w = @. (1+sign(uk[2:N-1]))/2 * ρk[1:N-2] + (1-sign(uk[2:N-1]))/2 * ρk[2:N-1]
+        e = @. (1+sign(uk[3:N]))/2   * ρk[2:N-1] + (1-sign(uk[3:N]))/2   * ρk[3:N]
         new(in, W, P, E, w, e)
     end
 end
 
-struct UVelCenter
+struct UVelMainGrid
     in :: Float64
     w :: SubArray{Float64, 1}
     e :: SubArray{Float64, 1}
 
-    function UVelCenter(uk :: Vector{Float64})
-        N = length(uk)-1
+    function UVelMainGrid(uk :: Vector{Float64}, N :: Int64)
         in = uk[1]
         e = @view uk[2:N-1]
         w = @view uk[3:N]
@@ -118,14 +112,13 @@ struct UVelCenter
     end
 end
 
-struct PressCenter
+struct PressMainGrid
     out :: Float64
     W :: SubArray{Float64, 1}
     P :: SubArray{Float64, 1}
     E :: SubArray{Float64, 1}
 
-    function PressCenter(P_ :: Vector{Float64})
-        N = length(P_)
+    function PressMainGrid(P_ :: Vector{Float64}, N :: Int64)
         out = P_[N]
         W = @view P_[1:N-2]
         P = @view P_[2:N-1]
