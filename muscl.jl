@@ -13,7 +13,7 @@ function momentum_muscl(
     Δt :: Float64
     )
     
-    F = momentum_flux_flux(ux_k, u0_k, N, Δx, Δt)
+    F = momentum_flux(ux_k, u0_k, N, Δx, Δt)
     S = @. α0k.e*(P.P - P.E)/Δx + α0k.e*ρ0k.e*g*sin(θ) + CATHARE*(α0k.E - α0k.P)/Δx
 
     ux_k[1] = u0k.in
@@ -56,30 +56,29 @@ end
 
 function void_fraction_muscl(
     αx_k :: Vector{Float64},
-    u0_k :: Vector{Float64},
-    αxk :: AlphaSubGrid,
-    ρxk :: RhoSubGrid,
-    uxk :: UVelSubGrid,
+    ρx_k :: Vector{Float64},
+    ux_k :: Vector{Float64},
+    αxk :: AlphaMainGrid,
+    ρxk :: RhoMainGrid,
+    ρk :: RhoMainGrid,
     N :: Int64,
     Δx :: Float64,
     Δt :: Float64
     )
     
+    F = void_fraction_flux(αx_k, ρx_k, ux_k, N, Δx, Δt)
 
+    αx_k[1] = αxk.in
+    αx_k[2:N-1] = @. (αxk.P*ρxk.P - (Δt/Δx)*(F.R - F.L))/ρk.P
+    αx_k[N] = αx_k[N]
 
-    F = momentum_flux_flux(ux_k, u0_k, N, Δx, Δt)
-    S = @. α0k.e*(P.P - P.E)/Δx + α0k.e*ρ0k.e*g*sin(θ) + CATHARE*(α0k.E - α0k.P)/Δx
-
-    ux_k[1] = u0k.in
-    ux_k[2:N] = @. u0k.e - (Δt/Δx)*(F.R - F.L) + (Δt/(α0k.e*ρ0k.e))*S
-    ux_k[N+1] = ux_k[N]
-
-    return ux_k
+    return αx_k
 end
 
 function void_fraction_flux(
     α_k  :: Vector{Float64},
-    α0_k :: Vector{Float64},
+    ρ_k  :: Vector{Float64},
+    u_k  :: Vector{Float64},
     N  :: Int64,
     Δx :: Float64,
     Δt :: Float64
@@ -97,16 +96,14 @@ function void_fraction_flux(
     αR_k = @. α_k + s*(Δx/2)
     
     # Evolucao dos valores (MUSCL-Hancock)
-    ux_kP = @. (ux_k[1:N] + ux_k[2:N+1])/2
+    u_kP = @. (u_k[1:N] + u_k[2:N+1])/2
 
-    AL_k = @. αL_k + (1/2)*(Δt/Δx)*ρx_G*ux_kP*(αL_k - αR_k)
-    AR_k = @. αR_k + (1/2)*(Δt/Δx)*ρx_G*ux_kP*(αL_k - αR_k)
+    AL_k = @. αL_k + (1/2)*(Δt/Δx)*ρ_k*u_kP*(αL_k - αR_k)
+    AR_k = @. αR_k + (1/2)*(Δt/Δx)*ρ_k*u_kP*(αL_k - αR_k)
     
-    #= Fluxo de Rusanov
-    F_L = @. (1/2)*(u0_k[2:N] + abs(u0_k[2:N]))*UL_k[1:N-1] + (1/2)*(u0_k[2:N] - abs(u0_k[2:N]))*UR_k[2:N]
-    F_R = @. (1/2)*(u0_k[2:N] + abs(u0_k[2:N]))*UL_k[2:N]   + (1/2)*(u0_k[2:N] - abs(u0_k[2:N]))*UR_k[3:N+1]
+    # Fluxo de Rusanov
+    F_L = @. (1/2)*ρ_k[2:N-1]*(u_k[2:N-1] + abs(u_k[2:N-1]))*AL_k[1:N-2] + (1/2)*ρ_k[2:N-1]*(u_k[2:N-1] - abs(u_k[2:N-1]))*AR_k[2:N-1]
+    F_R = @. (1/2)*ρ_k[2:N-1]*(u_k[2:N-1] + abs(u_k[2:N-1]))*AL_k[2:N-1] + (1/2)*ρ_k[2:N-1]*(u_k[2:N-1] - abs(u_k[2:N-1]))*AR_k[3:N]
     
-    return (L=F_L, R=F_R,)=#
+    return (L=F_L, R=F_R,)
 end
-
-void_fraction_flux()
